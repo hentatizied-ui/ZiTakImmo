@@ -1,3 +1,4 @@
+import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:share_plus/share_plus.dart';
@@ -64,7 +65,7 @@ class _PaymentDetailsScreenState extends State<PaymentDetailsScreen> {
         borderRadius: BorderRadius.circular(20),
         boxShadow: [
           BoxShadow(
-            color: Colors.grey.withOpacity(0.1),
+            color: Colors.grey.withValues(alpha: 0.1),
             blurRadius: 10,
           ),
         ],
@@ -98,7 +99,7 @@ class _PaymentDetailsScreenState extends State<PaymentDetailsScreen> {
         borderRadius: BorderRadius.circular(20),
         boxShadow: [
           BoxShadow(
-            color: Colors.grey.withOpacity(0.1),
+            color: Colors.grey.withValues(alpha: 0.1),
             blurRadius: 10,
           ),
         ],
@@ -157,7 +158,7 @@ class _PaymentDetailsScreenState extends State<PaymentDetailsScreen> {
         borderRadius: BorderRadius.circular(20),
         boxShadow: [
           BoxShadow(
-            color: Colors.grey.withOpacity(0.1),
+            color: Colors.grey.withValues(alpha: 0.1),
             blurRadius: 10,
           ),
         ],
@@ -227,7 +228,10 @@ class _PaymentDetailsScreenState extends State<PaymentDetailsScreen> {
     setState(() {
       _isGenerating = false;
     });
-    PdfService.openInNewTab(widget.payment, pdfBytes);
+    await Share.shareXFiles(
+      [XFile.fromData(pdfBytes, name: 'quittance.pdf', mimeType: 'application/pdf')],
+      text: 'Quittance de loyer',
+    );
   }
 
   Future<void> _sharePDF() async {

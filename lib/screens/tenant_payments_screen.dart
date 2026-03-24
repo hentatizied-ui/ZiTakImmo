@@ -8,7 +8,6 @@ import '../models/tenant.dart';
 import '../models/payment.dart';
 import '../models/property.dart';
 import '../services/pdf_service.dart';
-import '../services/share_service.dart';
 
 class TenantPaymentsScreen extends StatefulWidget {
   final Tenant tenant;
@@ -180,7 +179,7 @@ class _TenantPaymentsScreenState extends State<TenantPaymentsScreen> {
                 Container(
                   padding: const EdgeInsets.all(8),
                   decoration: BoxDecoration(
-                    color: Colors.red.withOpacity(0.1),
+                    color: Colors.red.withValues(alpha: 0.1),
                     borderRadius: BorderRadius.circular(8),
                   ),
                   child: Row(
@@ -258,12 +257,14 @@ class _TenantPaymentsScreenState extends State<TenantPaymentsScreen> {
     });
     await _savePayments();
     
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text('Paiement validé pour ${_formatMonth(payment.dueDate)}'),
-        backgroundColor: Colors.green,
-      ),
-    );
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Paiement validé pour ${_formatMonth(payment.dueDate)}'),
+          backgroundColor: Colors.green,
+        ),
+      );
+    }
     
     if (generateReceipt) {
       _generateAndSendReceipt(updatedPayment);
@@ -311,7 +312,10 @@ class _TenantPaymentsScreenState extends State<TenantPaymentsScreen> {
                       onPressed: () async {
                         Navigator.pop(context);
                         final pdfBytes = await PdfService.generateReceiptBytes(payment);
-                        await ShareService.sendEmail(payment.tenantName, pdfBytes);
+                        await Share.shareXFiles(
+                          [XFile.fromData(pdfBytes, name: 'quittance.pdf', mimeType: 'application/pdf')],
+                          text: 'Quittance de loyer - ${_formatMonth(payment.dueDate)}',
+                        );
                       },
                     ),
                   ),
@@ -324,7 +328,10 @@ class _TenantPaymentsScreenState extends State<TenantPaymentsScreen> {
                       onPressed: () async {
                         Navigator.pop(context);
                         final pdfBytes = await PdfService.generateReceiptBytes(payment);
-                        await ShareService.sendWhatsApp(payment.tenantName, pdfBytes);
+                        await Share.shareXFiles(
+                          [XFile.fromData(pdfBytes, name: 'quittance.pdf', mimeType: 'application/pdf')],
+                          text: 'Quittance de loyer - ${_formatMonth(payment.dueDate)}',
+                        );
                       },
                     ),
                   ),
@@ -390,7 +397,10 @@ class _TenantPaymentsScreenState extends State<TenantPaymentsScreen> {
                       onPressed: () async {
                         Navigator.pop(context);
                         final pdfBytes = await PdfService.generateReceiptBytes(payment);
-                        PdfService.openInNewTab(payment, pdfBytes);
+                        await Share.shareXFiles(
+                          [XFile.fromData(pdfBytes, name: 'quittance.pdf', mimeType: 'application/pdf')],
+                          text: 'Quittance de loyer - ${_formatMonth(payment.dueDate)}',
+                        );
                       },
                     ),
                   ),
@@ -553,7 +563,7 @@ class _TenantPaymentsScreenState extends State<TenantPaymentsScreen> {
         borderRadius: BorderRadius.circular(16),
         boxShadow: [
           BoxShadow(
-            color: Colors.grey.withOpacity(0.1),
+            color: Colors.grey.withValues(alpha: 0.1),
             blurRadius: 8,
           ),
         ],
@@ -597,7 +607,7 @@ class _TenantPaymentsScreenState extends State<TenantPaymentsScreen> {
         borderRadius: BorderRadius.circular(16),
         boxShadow: [
           BoxShadow(
-            color: Colors.grey.withOpacity(0.1),
+            color: Colors.grey.withValues(alpha: 0.1),
             blurRadius: 8,
           ),
         ],
@@ -646,7 +656,7 @@ class _TenantPaymentsScreenState extends State<TenantPaymentsScreen> {
             borderRadius: BorderRadius.circular(12),
             boxShadow: [
               BoxShadow(
-                color: Colors.grey.withOpacity(0.1),
+                color: Colors.grey.withValues(alpha: 0.1),
                 blurRadius: 4,
               ),
             ],
@@ -659,7 +669,7 @@ class _TenantPaymentsScreenState extends State<TenantPaymentsScreen> {
                   width: 50,
                   height: 50,
                   decoration: BoxDecoration(
-                    color: _getStatusColor(payment.status, payment.dueDate).withOpacity(0.1),
+                    color: _getStatusColor(payment.status, payment.dueDate).withValues(alpha: 0.1),
                     borderRadius: BorderRadius.circular(12),
                   ),
                   child: Icon(
@@ -701,8 +711,8 @@ class _TenantPaymentsScreenState extends State<TenantPaymentsScreen> {
                 Container(
                   padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                   decoration: BoxDecoration(
-                    color: _getStatusColor(payment.status, payment.dueDate).withOpacity(0.1),
-                    borderRadius: BorderRadius.circular(12),
+                    color: _getStatusColor(payment.status, payment.dueDate).withValues(alpha: 0.1),
+                    borderRadius: BorderRadius.circular(20),
                   ),
                   child: Text(
                     _getStatusText(payment.status, payment.dueDate),
