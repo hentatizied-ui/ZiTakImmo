@@ -8,6 +8,9 @@ workflows:
       - name: Get packages
         script: flutter pub get
       - name: Build unsigned app
-        script: flutter build ios --release --no-codesign
+        script: |
+          flutter build ios --release --no-codesign
+          mkdir -p build/ios/ipa
+          cp -r build/ios/iphoneos/Runner.app build/ios/ipa/
     artifacts:
-      - build/ios/iphoneos/Runner.app
+      - build/ios/ipa/Runner.app
