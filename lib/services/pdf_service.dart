@@ -1,8 +1,7 @@
-import 'dart:html' as html;
 import 'dart:typed_data';
 import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
-import 'package:universal_html/html.dart' as uh;
+import 'package:share_plus/share_plus.dart';
 import '../models/payment.dart';
 
 class PdfService {
@@ -12,7 +11,7 @@ class PdfService {
     pdf.addPage(
       pw.MultiPage(
         pageFormat: PdfPageFormat.a4,
-        margin: const pw.EdgeInsets.all(40),
+        margin: pw.EdgeInsets.all(40),
         build: (context) => [
           _buildHeader(payment),
           pw.SizedBox(height: 20),
@@ -30,21 +29,11 @@ class PdfService {
     return await pdf.save();
   }
 
-  static void downloadReceipt(Payment payment, Uint8List bytes) {
-    final blob = html.Blob([bytes], 'application/pdf');
-    final url = html.Url.createObjectUrlFromBlob(blob);
-    final anchor = html.AnchorElement(href: url)
-      ..target = 'blank'
-      ..download = 'quittance_${payment.id}.pdf';
-    anchor.click();
-    html.Url.revokeObjectUrl(url);
-  }
-
-  static void openInNewTab(Payment payment, Uint8List bytes) {
-    final blob = html.Blob([bytes], 'application/pdf');
-    final url = html.Url.createObjectUrlFromBlob(blob);
-    uh.window.open(url, '_blank');
-    html.Url.revokeObjectUrl(url);
+  static Future<void> shareReceipt(Payment payment, Uint8List pdfBytes) async {
+    await Share.shareXFiles(
+      [XFile.fromData(pdfBytes, name: 'quittance_${payment.id}.pdf', mimeType: 'application/pdf')],
+      text: 'Quittance de loyer - ${payment.tenantName}',
+    );
   }
 
   static pw.Widget _buildHeader(Payment payment) {
@@ -94,7 +83,7 @@ class PdfService {
 
   static pw.Widget _buildInfo(Payment payment) {
     return pw.Container(
-      padding: const pw.EdgeInsets.all(16),
+      padding: pw.EdgeInsets.all(16),
       decoration: pw.BoxDecoration(
         border: pw.Border.all(color: PdfColors.grey300),
         borderRadius: pw.BorderRadius.circular(8),
@@ -117,7 +106,7 @@ class PdfService {
       border: pw.TableBorder.all(color: PdfColors.grey300),
       children: [
         pw.TableRow(
-          decoration: const pw.BoxDecoration(color: PdfColors.grey100),
+          decoration: pw.BoxDecoration(color: PdfColors.grey100),
           children: [
             _buildTableCell('Désignation', fontWeight: pw.FontWeight.bold),
             _buildTableCell('Montant', fontWeight: pw.FontWeight.bold, alignment: pw.Alignment.centerRight),
@@ -130,7 +119,7 @@ class PdfService {
           ],
         ),
         pw.TableRow(
-          decoration: const pw.BoxDecoration(color: PdfColors.grey50),
+          decoration: pw.BoxDecoration(color: PdfColors.grey50),
           children: [
             _buildTableCell('Charges', fontWeight: pw.FontWeight.bold),
             _buildTableCell('0,00 €', alignment: pw.Alignment.centerRight, fontWeight: pw.FontWeight.bold),
@@ -156,7 +145,7 @@ class PdfService {
     pw.FontWeight? fontWeight,
   }) {
     return pw.Container(
-      padding: const pw.EdgeInsets.all(12),
+      padding: pw.EdgeInsets.all(12),
       alignment: alignment,
       child: pw.Text(
         text,
@@ -192,7 +181,7 @@ class PdfService {
         pw.SizedBox(height: 40),
         pw.Text(
           'Cette quittance tient lieu de reçu pour le paiement du loyer et des charges.',
-          style: const pw.TextStyle(fontSize: 10, color: PdfColors.grey600),
+          style: pw.TextStyle(fontSize: 10, color: PdfColors.grey600),
         ),
       ],
     );
