@@ -5,6 +5,8 @@ workflows:
     environment:
       flutter: stable
     scripts:
+      - name: Clean
+        script: flutter clean
       - name: Get packages
         script: flutter pub get
       - name: Install pods
