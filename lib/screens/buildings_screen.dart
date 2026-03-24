@@ -412,7 +412,7 @@ class _BuildingsScreenState extends State<BuildingsScreen> {
                       ),
                       const SizedBox(height: 16),
                       DropdownButtonFormField<String>(
-                        value: _selectedLotType,
+                        initialValue: _selectedLotType,
                         decoration: InputDecoration(
                           labelText: 'Type de lot *',
                           border: OutlineInputBorder(
@@ -433,7 +433,7 @@ class _BuildingsScreenState extends State<BuildingsScreen> {
                       ),
                       const SizedBox(height: 16),
                       DropdownButtonFormField<String>(
-                        value: _selectedFloor,
+                        initialValue: _selectedFloor,
                         decoration: InputDecoration(
                           labelText: 'Étage *',
                           border: OutlineInputBorder(
@@ -465,7 +465,7 @@ class _BuildingsScreenState extends State<BuildingsScreen> {
                       ),
                       const SizedBox(height: 16),
                       DropdownButtonFormField<String>(
-                        value: _selectedStatus,
+                        initialValue: _selectedStatus,
                         decoration: InputDecoration(
                           labelText: 'Statut initial *',
                           border: OutlineInputBorder(

@@ -4,7 +4,6 @@ import 'screens/buildings_screen.dart';
 import 'screens/tenants.dart';
 import 'screens/payments_screen.dart';
 import 'screens/dashboard.dart';
-import 'screens/tenant_payments_screen.dart';
 
 void main() {
   runApp(const MyApp());

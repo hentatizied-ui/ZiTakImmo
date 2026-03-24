@@ -12,7 +12,7 @@ class PdfService {
     pdf.addPage(
       pw.MultiPage(
         pageFormat: PdfPageFormat.a4,
-        margin: pw.EdgeInsets.all(40),
+        margin: const pw.EdgeInsets.all(40),
         build: (context) => [
           _buildHeader(payment),
           pw.SizedBox(height: 20),
@@ -94,7 +94,7 @@ class PdfService {
 
   static pw.Widget _buildInfo(Payment payment) {
     return pw.Container(
-      padding: pw.EdgeInsets.all(16),
+      padding: const pw.EdgeInsets.all(16),
       decoration: pw.BoxDecoration(
         border: pw.Border.all(color: PdfColors.grey300),
         borderRadius: pw.BorderRadius.circular(8),
@@ -117,7 +117,7 @@ class PdfService {
       border: pw.TableBorder.all(color: PdfColors.grey300),
       children: [
         pw.TableRow(
-          decoration: pw.BoxDecoration(color: PdfColors.grey100),
+          decoration: const pw.BoxDecoration(color: PdfColors.grey100),
           children: [
             _buildTableCell('Désignation', fontWeight: pw.FontWeight.bold),
             _buildTableCell('Montant', fontWeight: pw.FontWeight.bold, alignment: pw.Alignment.centerRight),
@@ -130,7 +130,7 @@ class PdfService {
           ],
         ),
         pw.TableRow(
-          decoration: pw.BoxDecoration(color: PdfColors.grey50),
+          decoration: const pw.BoxDecoration(color: PdfColors.grey50),
           children: [
             _buildTableCell('Charges', fontWeight: pw.FontWeight.bold),
             _buildTableCell('0,00 €', alignment: pw.Alignment.centerRight, fontWeight: pw.FontWeight.bold),
@@ -156,7 +156,7 @@ class PdfService {
     pw.FontWeight? fontWeight,
   }) {
     return pw.Container(
-      padding: pw.EdgeInsets.all(12),
+      padding: const pw.EdgeInsets.all(12),
       alignment: alignment,
       child: pw.Text(
         text,
@@ -192,7 +192,7 @@ class PdfService {
         pw.SizedBox(height: 40),
         pw.Text(
           'Cette quittance tient lieu de reçu pour le paiement du loyer et des charges.',
-          style: pw.TextStyle(fontSize: 10, color: PdfColors.grey600),
+          style: const pw.TextStyle(fontSize: 10, color: PdfColors.grey600),
         ),
       ],
     );

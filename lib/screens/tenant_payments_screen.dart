@@ -681,7 +681,7 @@ class _TenantPaymentsScreenState extends State<TenantPaymentsScreen> {
                         ),
                       ),
                       Text(
-                        '${payment.formattedAmount}',
+                        payment.formattedAmount,
                         style: GoogleFonts.urbanist(
                           fontSize: 14,
                           color: Colors.grey,

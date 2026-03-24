@@ -211,7 +211,7 @@ class _TenantsScreenState extends State<TenantsScreen> {
                         ),
                         const SizedBox(height: 16),
                         DropdownButtonFormField<String>(
-                          value: _selectedBuildingId,
+                          initialValue: _selectedBuildingId,
                           decoration: InputDecoration(
                             labelText: 'Immeuble *',
                             border: OutlineInputBorder(
@@ -237,7 +237,7 @@ class _TenantsScreenState extends State<TenantsScreen> {
                         const SizedBox(height: 16),
                         if (_selectedBuildingId != null)
                           DropdownButtonFormField<String>(
-                            value: _selectedLotId,
+                            initialValue: _selectedLotId,
                             decoration: InputDecoration(
                               labelText: 'Lot *',
                               border: OutlineInputBorder(
