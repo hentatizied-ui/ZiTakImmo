@@ -1,9 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'screens/dashboard.dart';
-import 'screens/properties.dart';
+import 'screens/buildings_screen.dart';
 import 'screens/tenants.dart';
-import 'screens/payments.dart';
+import 'screens/payments_screen.dart';
+import 'screens/dashboard.dart';
+import 'screens/tenant_payments_screen.dart';
 
 void main() {
   runApp(const MyApp());
@@ -17,7 +18,7 @@ class MyApp extends StatelessWidget {
     return MaterialApp(
       title: 'Gestion Locative',
       theme: ThemeData(
-        colorScheme: ColorScheme.fromSeed(seedColor: Colors.blue),
+        colorScheme: ColorScheme.fromSeed(seedColor: const Color(0xFF1E88E5)),
         useMaterial3: true,
         textTheme: GoogleFonts.urbanistTextTheme(),
       ),
@@ -39,7 +40,7 @@ class _HomePageState extends State<HomePage> {
 
   final List<Widget> _screens = [
     const DashboardScreen(),
-    const PropertiesScreen(),
+    const BuildingsScreen(),
     const TenantsScreen(),
     const PaymentsScreen(),
   ];
@@ -61,8 +62,8 @@ class _HomePageState extends State<HomePage> {
             label: 'Accueil',
           ),
           NavigationDestination(
-            icon: Icon(Icons.apartment),
-            label: 'Biens',
+            icon: Icon(Icons.business),
+            label: 'Immeubles',
           ),
           NavigationDestination(
             icon: Icon(Icons.people),
