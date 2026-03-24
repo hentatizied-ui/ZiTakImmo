@@ -10,14 +10,19 @@ dependencies:
   flutter:
     sdk: flutter
 
-  # Design
   google_fonts: ^6.1.0
-  
-  # Icônes
-  cupertino_icons: ^1.0.6
-  
-  # Stockage local
   shared_preferences: ^2.2.2
+  
+  # Pour les PDF
+  pdf: ^3.10.7
+  path_provider: ^2.1.1
+  
+  # Pour le partage
+  share_plus: ^7.2.2
+  url_launcher: ^6.2.2
+
+  # ... autres dépendances
+  universal_html: ^2.2.4
 
 dev_dependencies:
   flutter_test:
