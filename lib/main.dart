@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'screens/buildings_screen.dart';
 import 'screens/tenants.dart';
@@ -6,6 +7,16 @@ import 'screens/payments_screen.dart';
 import 'screens/dashboard.dart';
 
 void main() {
+  // Capture les erreurs pour debug
+  FlutterError.onError = (FlutterErrorDetails details) {
+    FlutterError.dumpErrorToConsole(details);
+    if (kReleaseMode) {
+      print('=== ERREUR FATALE ===');
+      print(details.exception);
+      print(details.stack);
+    }
+  };
+  
   runApp(const MyApp());
 }
 

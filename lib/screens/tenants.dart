@@ -4,7 +4,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../models/tenant.dart';
 import '../models/property.dart';
-import '../screens/tenant_payments_screen.dart';
+import 'tenant_payments_screen.dart';
 
 class TenantsScreen extends StatefulWidget {
   const TenantsScreen({super.key});
@@ -18,7 +18,7 @@ class _TenantsScreenState extends State<TenantsScreen> {
   List<Immeuble> _buildings = [];
   bool _isLoading = true;
 
-  // Contrôleurs pour le formulaire
+  // Contrôleurs
   final _firstNameController = TextEditingController();
   final _lastNameController = TextEditingController();
   final _emailController = TextEditingController();
@@ -108,7 +108,6 @@ class _TenantsScreenState extends State<TenantsScreen> {
     });
     await _saveTenants();
 
-    // Réinitialiser le formulaire
     _firstNameController.clear();
     _lastNameController.clear();
     _emailController.clear();
@@ -124,7 +123,6 @@ class _TenantsScreenState extends State<TenantsScreen> {
   }
 
   void _editTenant(Tenant tenant) {
-    // Extraire prénom et nom du fullName
     final nameParts = tenant.fullName.split(' ');
     final firstName = nameParts.isNotEmpty ? nameParts[0] : '';
     final lastName = nameParts.length > 1 ? nameParts.sublist(1).join(' ') : '';
@@ -421,8 +419,8 @@ class _TenantsScreenState extends State<TenantsScreen> {
                                   radius: 25,
                                   backgroundColor: const Color(0xFF1E88E5).withValues(alpha: 0.1),
                                   child: Text(
-                                    tenant.fullName.isNotEmpty 
-                                        ? tenant.fullName[0].toUpperCase() 
+                                    tenant.fullName.isNotEmpty && tenant.fullName[0] != null
+                                        ? tenant.fullName[0].toUpperCase()
                                         : '?',
                                     style: GoogleFonts.urbanist(
                                       fontSize: 18,

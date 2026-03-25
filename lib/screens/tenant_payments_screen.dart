@@ -145,9 +145,6 @@ class _TenantPaymentsScreenState extends State<TenantPaymentsScreen> {
     await prefs.setString('payments', jsonString);
   }
 
-  // =========================================================================
-  // Getters
-  // =========================================================================
   List<Payment> get _pendingPayments =>
       _payments.where((p) => p.status == 'pending').toList();
 
@@ -281,9 +278,8 @@ class _TenantPaymentsScreenState extends State<TenantPaymentsScreen> {
   }
 
   // =========================================================================
-  // Gestion PDF - Partage avec pièce jointe
+  // Gestion PDF
   // =========================================================================
-  
   Future<File?> _generatePDF(Payment payment) async {
     try {
       final month = _formatMonth(payment.dueDate);
@@ -302,7 +298,7 @@ class _TenantPaymentsScreenState extends State<TenantPaymentsScreen> {
         paymentMethod: 'Virement',
         reference: payment.id,
       );
-      
+
       if (file != null && await file.exists()) {
         return file;
       }
@@ -313,8 +309,7 @@ class _TenantPaymentsScreenState extends State<TenantPaymentsScreen> {
     }
   }
 
-  // PARTAGE AVEC PIÈCE JOINTE (Email et WhatsApp)
-  Future<void> _sharePDFWithAttachment(Payment payment, {String? appName}) async {
+  Future<void> _sharePDFWithAttachment(Payment payment) async {
     final file = await _generatePDF(payment);
     if (file == null) return;
 
@@ -325,16 +320,11 @@ class _TenantPaymentsScreenState extends State<TenantPaymentsScreen> {
         text: 'Quittance de loyer - ${_formatMonth(payment.dueDate)}',
         subject: 'Quittance de loyer',
       );
-      _showSnackBar('Partage du PDF...');
     } catch (e) {
       _showSnackBar('Erreur lors du partage: $e');
     }
   }
 
-  // =========================================================================
-  // Ouverture directe des applications (sans pièce jointe)
-  // =========================================================================
-  
   Future<void> _openMailApp(Payment payment) async {
     final tenant = widget.tenant;
     if (tenant.email == null || tenant.email!.isEmpty) {
@@ -343,12 +333,14 @@ class _TenantPaymentsScreenState extends State<TenantPaymentsScreen> {
     }
 
     final subject = 'Quittance de loyer - ${_formatMonth(payment.dueDate)}';
-    final body = 'Bonjour,\n\nVeuillez trouver ci-joint votre quittance de loyer pour la période ${_formatMonth(payment.dueDate)}.\n\nCordialement.';
-    
+    final body =
+        'Bonjour,\n\nVeuillez trouver ci-joint votre quittance de loyer pour la période ${_formatMonth(payment.dueDate)}.\n\nCordialement.';
+
     final mailtoUri = Uri(
       scheme: 'mailto',
       path: tenant.email,
-      query: 'subject=${Uri.encodeComponent(subject)}&body=${Uri.encodeComponent(body)}',
+      query:
+          'subject=${Uri.encodeComponent(subject)}&body=${Uri.encodeComponent(body)}',
     );
 
     if (await canLaunchUrl(mailtoUri)) {
@@ -365,7 +357,6 @@ class _TenantPaymentsScreenState extends State<TenantPaymentsScreen> {
       return;
     }
 
-    // Formater le numéro pour WhatsApp
     String phone = tenant.phone!.trim().replaceAll(RegExp(r'\s+'), '');
     if (!phone.startsWith('+')) {
       if (phone.startsWith('0')) {
@@ -375,8 +366,10 @@ class _TenantPaymentsScreenState extends State<TenantPaymentsScreen> {
       }
     }
 
-    final message = 'Bonjour, voici votre quittance de loyer pour ${_formatMonth(payment.dueDate)}.';
-    final whatsappUri = Uri.parse('https://wa.me/$phone?text=${Uri.encodeComponent(message)}');
+    final message =
+        'Bonjour, voici votre quittance de loyer pour ${_formatMonth(payment.dueDate)}.';
+    final whatsappUri = Uri.parse(
+        'https://wa.me/$phone?text=${Uri.encodeComponent(message)}');
 
     if (await canLaunchUrl(whatsappUri)) {
       await launchUrl(whatsappUri, mode: LaunchMode.externalApplication);
@@ -420,7 +413,7 @@ class _TenantPaymentsScreenState extends State<TenantPaymentsScreen> {
               ),
               const SizedBox(height: 24),
 
-              // === PARTAGE AVEC PIÈCE JOINTE ===
+              // Partager avec pièce jointe
               Text(
                 '📎 Partager le PDF',
                 style: GoogleFonts.urbanist(fontSize: 14, fontWeight: FontWeight.w600),
@@ -455,7 +448,7 @@ class _TenantPaymentsScreenState extends State<TenantPaymentsScreen> {
               ),
               const SizedBox(height: 20),
 
-              // === OUVERTURE DIRECTE (sans pièce jointe) ===
+              // Ouverture directe
               Text(
                 '💬 Ouvrir directement',
                 style: GoogleFonts.urbanist(fontSize: 14, fontWeight: FontWeight.w600),
@@ -605,8 +598,18 @@ class _TenantPaymentsScreenState extends State<TenantPaymentsScreen> {
   // =========================================================================
   String _formatMonth(DateTime date) {
     const months = [
-      'Janvier', 'Février', 'Mars', 'Avril', 'Mai', 'Juin',
-      'Juillet', 'Août', 'Septembre', 'Octobre', 'Novembre', 'Décembre'
+      'Janvier',
+      'Février',
+      'Mars',
+      'Avril',
+      'Mai',
+      'Juin',
+      'Juillet',
+      'Août',
+      'Septembre',
+      'Octobre',
+      'Novembre',
+      'Décembre'
     ];
     return '${months[date.month - 1]} ${date.year}';
   }
@@ -634,7 +637,7 @@ class _TenantPaymentsScreenState extends State<TenantPaymentsScreen> {
   }
 
   // =========================================================================
-  // Interface utilisateur (inchangée)
+  // Interface utilisateur
   // =========================================================================
   @override
   Widget build(BuildContext context) {
