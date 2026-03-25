@@ -1,0 +1,17 @@
+{
+  "project": "zitakimmo",
+  "platform": "ios",
+  "github": {
+    "owner": "hentatizied-ui",
+    "repo": "ZiTakImmo"
+  },
+  "ios": {
+    "path": "ios"
+  },
+  "flutter": {
+    "version": "3.41.5",
+    "watch": {}
+  },
+  "reactNative": {},
+  "mobai": {}
+}
