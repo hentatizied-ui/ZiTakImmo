@@ -27,7 +27,6 @@ class _BuildingsScreenState extends State<BuildingsScreen> {
   String _selectedLotType = 'Appartement';
   String _selectedFloor = 'RDC';
   String _selectedStatus = 'Libre';
-  Immeuble? _selectedBuilding;
 
   final List<String> _lotTypes = [
     'Appartement',
@@ -360,7 +359,6 @@ class _BuildingsScreenState extends State<BuildingsScreen> {
     _selectedLotType = 'Appartement';
     _selectedFloor = 'RDC';
     _selectedStatus = 'Libre';
-    _selectedBuilding = building;
 
     showModalBottomSheet(
       context: context,

@@ -1,8 +1,6 @@
 import 'dart:convert';
-import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'package:share_plus/share_plus.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../models/tenant.dart';
 import '../models/payment.dart';
@@ -312,10 +310,7 @@ class _TenantPaymentsScreenState extends State<TenantPaymentsScreen> {
                       onPressed: () async {
                         Navigator.pop(context);
                         final pdfBytes = await PdfService.generateReceiptBytes(payment);
-                        await Share.shareXFiles(
-                          [XFile.fromData(pdfBytes, name: 'quittance.pdf', mimeType: 'application/pdf')],
-                          text: 'Quittance de loyer - ${_formatMonth(payment.dueDate)}',
-                        );
+                        await PdfService.shareReceipt(payment, pdfBytes);
                       },
                     ),
                   ),
@@ -328,10 +323,7 @@ class _TenantPaymentsScreenState extends State<TenantPaymentsScreen> {
                       onPressed: () async {
                         Navigator.pop(context);
                         final pdfBytes = await PdfService.generateReceiptBytes(payment);
-                        await Share.shareXFiles(
-                          [XFile.fromData(pdfBytes, name: 'quittance.pdf', mimeType: 'application/pdf')],
-                          text: 'Quittance de loyer - ${_formatMonth(payment.dueDate)}',
-                        );
+                        await PdfService.shareReceipt(payment, pdfBytes);
                       },
                     ),
                   ),
@@ -392,15 +384,12 @@ class _TenantPaymentsScreenState extends State<TenantPaymentsScreen> {
                   Expanded(
                     child: _buildSendButton(
                       icon: Icons.picture_as_pdf,
-                      label: 'Voir PDF',
+                      label: 'Ouvrir PDF',
                       color: Colors.red,
                       onPressed: () async {
                         Navigator.pop(context);
                         final pdfBytes = await PdfService.generateReceiptBytes(payment);
-                        await Share.shareXFiles(
-                          [XFile.fromData(pdfBytes, name: 'quittance.pdf', mimeType: 'application/pdf')],
-                          text: 'Quittance de loyer - ${_formatMonth(payment.dueDate)}',
-                        );
+                        await PdfService.openReceipt(payment, pdfBytes);
                       },
                     ),
                   ),
@@ -413,10 +402,7 @@ class _TenantPaymentsScreenState extends State<TenantPaymentsScreen> {
                       onPressed: () async {
                         Navigator.pop(context);
                         final pdfBytes = await PdfService.generateReceiptBytes(payment);
-                        await Share.shareXFiles(
-                          [XFile.fromData(pdfBytes, name: 'quittance.pdf', mimeType: 'application/pdf')],
-                          text: 'Quittance de loyer - ${_formatMonth(payment.dueDate)}',
-                        );
+                        await PdfService.shareReceipt(payment, pdfBytes);
                       },
                     ),
                   ),

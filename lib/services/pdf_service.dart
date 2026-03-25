@@ -1,193 +1,129 @@
-import 'dart:typed_data';
+import 'dart:io';
+import 'package:path_provider/path_provider.dart';
+import 'package:share_plus/share_plus.dart';
+import 'package:open_file/open_file.dart';
 import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
-import 'package:share_plus/share_plus.dart';
-import '../models/payment.dart';
 
 class PdfService {
-  static Future<Uint8List> generateReceiptBytes(Payment payment) async {
-    final pdf = pw.Document();
-    
-    pdf.addPage(
-      pw.MultiPage(
-        pageFormat: PdfPageFormat.a4,
-        margin: pw.EdgeInsets.all(40),
-        build: (context) => [
-          _buildHeader(payment),
-          pw.SizedBox(height: 20),
-          _buildTitle(),
-          pw.SizedBox(height: 30),
-          _buildInfo(payment),
-          pw.SizedBox(height: 30),
-          _buildTable(payment),
-          pw.SizedBox(height: 40),
-          _buildFooter(),
-        ],
-      ),
-    );
-    
-    return await pdf.save();
-  }
+  /// Génère et sauvegarde le PDF dans le dossier Documents de l'application
+  static Future<File?> generateAndSave({
+    required String tenantName,
+    required String propertyAddress,
+    required double rentAmount,
+    required double chargesAmount,
+    required double totalAmount,
+    required String month,
+    required String paymentDate,
+    required String paymentMethod,
+    required String reference,
+  }) async {
+    try {
+      final pdf = pw.Document();
 
-  static Future<void> shareReceipt(Payment payment, Uint8List pdfBytes) async {
-    await Share.shareXFiles(
-      [XFile.fromData(pdfBytes, name: 'quittance_${payment.id}.pdf', mimeType: 'application/pdf')],
-      text: 'Quittance de loyer - ${payment.tenantName}',
-    );
-  }
-
-  static pw.Widget _buildHeader(Payment payment) {
-    return pw.Row(
-      mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
-      children: [
-        pw.Column(
-          crossAxisAlignment: pw.CrossAxisAlignment.start,
-          children: [
-            pw.Text(
-              'QUITTANCE DE LOYER',
-              style: pw.TextStyle(
-                fontSize: 18,
-                fontWeight: pw.FontWeight.bold,
-                color: PdfColors.blue,
-              ),
-            ),
-            pw.SizedBox(height: 8),
-            pw.Text('N° ${payment.id.substring(0, 8)}'),
-          ],
-        ),
-        pw.Column(
-          crossAxisAlignment: pw.CrossAxisAlignment.end,
-          children: [
-            pw.Text('Date d\'émission'),
-            pw.Text(
-              '${DateTime.now().day}/${DateTime.now().month}/${DateTime.now().year}',
-              style: pw.TextStyle(fontWeight: pw.FontWeight.bold),
-            ),
-          ],
-        ),
-      ],
-    );
-  }
-
-  static pw.Widget _buildTitle() {
-    return pw.Center(
-      child: pw.Text(
-        'QUITTANCE DE LOYER',
-        style: pw.TextStyle(
-          fontSize: 16,
-          fontWeight: pw.FontWeight.bold,
-        ),
-      ),
-    );
-  }
-
-  static pw.Widget _buildInfo(Payment payment) {
-    return pw.Container(
-      padding: pw.EdgeInsets.all(16),
-      decoration: pw.BoxDecoration(
-        border: pw.Border.all(color: PdfColors.grey300),
-        borderRadius: pw.BorderRadius.circular(8),
-      ),
-      child: pw.Column(
-        crossAxisAlignment: pw.CrossAxisAlignment.start,
-        children: [
-          pw.Text('Locataire : ${payment.tenantName}'),
-          pw.SizedBox(height: 8),
-          pw.Text('Bien : ${payment.lotName}'),
-          pw.SizedBox(height: 8),
-          pw.Text('Période concernée : ${_formatDate(payment.dueDate)}'),
-        ],
-      ),
-    );
-  }
-
-  static pw.Widget _buildTable(Payment payment) {
-    return pw.Table(
-      border: pw.TableBorder.all(color: PdfColors.grey300),
-      children: [
-        pw.TableRow(
-          decoration: pw.BoxDecoration(color: PdfColors.grey100),
-          children: [
-            _buildTableCell('Désignation', fontWeight: pw.FontWeight.bold),
-            _buildTableCell('Montant', fontWeight: pw.FontWeight.bold, alignment: pw.Alignment.centerRight),
-          ],
-        ),
-        pw.TableRow(
-          children: [
-            _buildTableCell('Loyer mensuel'),
-            _buildTableCell(payment.formattedAmount, alignment: pw.Alignment.centerRight),
-          ],
-        ),
-        pw.TableRow(
-          decoration: pw.BoxDecoration(color: PdfColors.grey50),
-          children: [
-            _buildTableCell('Charges', fontWeight: pw.FontWeight.bold),
-            _buildTableCell('0,00 €', alignment: pw.Alignment.centerRight, fontWeight: pw.FontWeight.bold),
-          ],
-        ),
-        pw.TableRow(
-          children: [
-            _buildTableCell('TOTAL', fontWeight: pw.FontWeight.bold),
-            _buildTableCell(
-              payment.formattedAmount,
-              alignment: pw.Alignment.centerRight,
-              fontWeight: pw.FontWeight.bold,
-            ),
-          ],
-        ),
-      ],
-    );
-  }
-
-  static pw.Widget _buildTableCell(
-    String text, {
-    pw.Alignment alignment = pw.Alignment.centerLeft,
-    pw.FontWeight? fontWeight,
-  }) {
-    return pw.Container(
-      padding: pw.EdgeInsets.all(12),
-      alignment: alignment,
-      child: pw.Text(
-        text,
-        style: pw.TextStyle(fontWeight: fontWeight),
-      ),
-    );
-  }
-
-  static pw.Widget _buildFooter() {
-    return pw.Column(
-      children: [
-        pw.Divider(),
-        pw.SizedBox(height: 20),
-        pw.Row(
-          mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
-          children: [
-            pw.Column(
+      pdf.addPage(
+        pw.Page(
+          margin: const pw.EdgeInsets.all(40),
+          build: (pw.Context context) {
+            return pw.Column(
+              crossAxisAlignment: pw.CrossAxisAlignment.start,
               children: [
-                pw.Text('Signature du locataire'),
-                pw.SizedBox(height: 40),
-                pw.Text('(précédée de la mention "lu et approuvé")'),
+                pw.Center(
+                  child: pw.Text(
+                    'QUITTANCE DE LOYER',
+                    style: pw.TextStyle(fontSize: 24, fontWeight: pw.FontWeight.bold),
+                  ),
+                ),
+                pw.SizedBox(height: 30),
+                pw.Text('Date : $paymentDate'),
+                pw.Text('Référence : $reference'),
+                pw.SizedBox(height: 20),
+                pw.Text('Locataire : $tenantName'),
+                pw.Text('Adresse du bien : $propertyAddress'),
+                pw.SizedBox(height: 20),
+                pw.Text('Quittance pour le mois de : $month'),
+                pw.SizedBox(height: 20),
+                pw.Row(
+                  mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+                  children: [
+                    pw.Text('Loyer :', style: pw.TextStyle(fontWeight: pw.FontWeight.bold)),
+                    pw.Text('${rentAmount.toStringAsFixed(2)} €'),
+                  ],
+                ),
+                pw.Row(
+                  mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+                  children: [
+                    pw.Text('Charges :', style: pw.TextStyle(fontWeight: pw.FontWeight.bold)),
+                    pw.Text('${chargesAmount.toStringAsFixed(2)} €'),
+                  ],
+                ),
+                pw.Divider(),
+                pw.Row(
+                  mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+                  children: [
+                    pw.Text('Total :', style: pw.TextStyle(fontWeight: pw.FontWeight.bold)),
+                    pw.Text('${totalAmount.toStringAsFixed(2)} €',
+                        style: const pw.TextStyle(fontWeight: pw.FontWeight.bold)),
+                  ],
+                ),
+                pw.SizedBox(height: 30),
+                pw.Text('Règlement effectué par : $paymentMethod'),
+                pw.SizedBox(height: 50),
+                pw.Text('Signature du bailleur : _________________'),
               ],
-            ),
-            pw.Column(
-              children: [
-                pw.Text('Signature du bailleur'),
-                pw.SizedBox(height: 40),
-                pw.Text('(Cachet de l\'agence)'),
-              ],
-            ),
-          ],
+            );
+          },
         ),
-        pw.SizedBox(height: 40),
-        pw.Text(
-          'Cette quittance tient lieu de reçu pour le paiement du loyer et des charges.',
-          style: pw.TextStyle(fontSize: 10, color: PdfColors.grey600),
-        ),
-      ],
-    );
+      );
+
+      // Sauvegarde dans le dossier Documents (accessible sur iOS et Android)
+      final directory = await getApplicationDocumentsDirectory();
+      final fileName = 'quittance_${DateTime.now().millisecondsSinceEpoch}.pdf';
+      final filePath = '${directory.path}/$fileName';
+      final file = File(filePath);
+      await file.writeAsBytes(await pdf.save());
+
+      print('✅ PDF généré : $filePath');
+      print('📏 Taille : ${await file.length()} bytes');
+      return file;
+    } catch (e) {
+      print('❌ Erreur génération PDF : $e');
+      return null;
+    }
   }
 
-  static String _formatDate(DateTime date) {
-    return '${date.day}/${date.month}/${date.year}';
+  /// Partage le PDF via l'intention de partage (WhatsApp, Mail, etc.)
+  static Future<bool> sharePDF(File file) async {
+    try {
+      await Share.shareXFiles(
+        [XFile(file.path)],
+        text: 'Quittance de loyer',
+        mimeTypes: ['application/pdf'],
+      );
+      return true;
+    } catch (e) {
+      print('Erreur partage : $e');
+      return false;
+    }
+  }
+
+  /// Ouvre le PDF avec l'application par défaut
+  static Future<void> openPDF(File file) async {
+    final result = await OpenFile.open(file.path);
+    if (result.type != ResultType.done) {
+      print("Ouverture échouée : ${result.message}");
+    }
+  }
+
+  /// Supprime le fichier après usage (optionnel)
+  static Future<void> deletePDF(File file) async {
+    try {
+      if (await file.exists()) {
+        await file.delete();
+        print('Fichier supprimé : ${file.path}');
+      }
+    } catch (e) {
+      print('Erreur suppression : $e');
+    }
   }
 }
