@@ -18,7 +18,6 @@ class _TenantsScreenState extends State<TenantsScreen> {
   List<Immeuble> _buildings = [];
   bool _isLoading = true;
 
-  // Contrôleurs
   final _firstNameController = TextEditingController();
   final _lastNameController = TextEditingController();
   final _emailController = TextEditingController();
@@ -44,6 +43,7 @@ class _TenantsScreenState extends State<TenantsScreen> {
   Future<void> _loadBuildings() async {
     final prefs = await SharedPreferences.getInstance();
     final String? buildingsJson = prefs.getString('buildings');
+    
     if (buildingsJson != null && buildingsJson.isNotEmpty) {
       final List<dynamic> decoded = jsonDecode(buildingsJson);
       setState(() {
@@ -209,105 +209,133 @@ class _TenantsScreenState extends State<TenantsScreen> {
   }
 
   Widget _buildTenantDialog({bool isEdit = false, Tenant? tenant}) {
+    // Variables locales pour le dialog
+    String? localBuildingId = _selectedBuildingId;
+    String? localLotId = _selectedLotId;
+    List<Lot> localAvailableLots = List.from(_availableLots);
+    DateTime localStartDate = _startDate;
+    TextEditingController localFirstName = TextEditingController(text: _firstNameController.text);
+    TextEditingController localLastName = TextEditingController(text: _lastNameController.text);
+    TextEditingController localEmail = TextEditingController(text: _emailController.text);
+    TextEditingController localPhone = TextEditingController(text: _phoneController.text);
+
     return AlertDialog(
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
       title: Text(isEdit ? 'Modifier le locataire' : 'Ajouter un locataire'),
-      content: SizedBox(
-        width: MediaQuery.of(context).size.width * 0.8,
-        child: SingleChildScrollView(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              TextField(
-                controller: _firstNameController,
-                decoration: const InputDecoration(
-                  labelText: 'Prénom',
-                  border: OutlineInputBorder(),
-                ),
+      content: StatefulBuilder(
+        builder: (context, setDialogState) {
+          return SizedBox(
+            width: MediaQuery.of(context).size.width * 0.8,
+            child: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  TextField(
+                    controller: localFirstName,
+                    decoration: const InputDecoration(
+                      labelText: 'Prénom',
+                      border: OutlineInputBorder(),
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  TextField(
+                    controller: localLastName,
+                    decoration: const InputDecoration(
+                      labelText: 'Nom',
+                      border: OutlineInputBorder(),
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  TextField(
+                    controller: localEmail,
+                    decoration: const InputDecoration(
+                      labelText: 'Email',
+                      border: OutlineInputBorder(),
+                    ),
+                    keyboardType: TextInputType.emailAddress,
+                  ),
+                  const SizedBox(height: 12),
+                  TextField(
+                    controller: localPhone,
+                    decoration: const InputDecoration(
+                      labelText: 'Téléphone',
+                      border: OutlineInputBorder(),
+                    ),
+                    keyboardType: TextInputType.phone,
+                  ),
+                  const SizedBox(height: 12),
+                  DropdownButtonFormField<String>(
+                    value: localBuildingId,
+                    hint: const Text('Sélectionner un immeuble'),
+                    decoration: const InputDecoration(
+                      labelText: 'Immeuble',
+                      border: OutlineInputBorder(),
+                    ),
+                    items: _buildings.map((building) {
+                      return DropdownMenuItem(
+                        value: building.id,
+                        child: Text(building.name),
+                      );
+                    }).toList(),
+                    onChanged: (value) {
+                      setDialogState(() {
+                        localBuildingId = value;
+                        localLotId = null;
+                        if (value == null) {
+                          localAvailableLots = [];
+                        } else {
+                          final building = _buildings.firstWhere(
+                            (b) => b.id == value,
+                            orElse: () => Immeuble(id: '', name: '', address: '', lots: []),
+                          );
+                          localAvailableLots = building.lots;
+                        }
+                      });
+                    },
+                  ),
+                  const SizedBox(height: 12),
+                  DropdownButtonFormField<String>(
+                    value: localLotId,
+                    hint: const Text('Sélectionner un lot'),
+                    decoration: const InputDecoration(
+                      labelText: 'Lot',
+                      border: OutlineInputBorder(),
+                    ),
+                    items: localAvailableLots.map((lot) {
+                      return DropdownMenuItem(
+                        value: lot.id,
+                        child: Text('${lot.name} - ${lot.rent.toStringAsFixed(2)} €'),
+                      );
+                    }).toList(),
+                    onChanged: (value) {
+                      setDialogState(() {
+                        localLotId = value;
+                      });
+                    },
+                  ),
+                  const SizedBox(height: 12),
+                  ListTile(
+                    title: const Text('Date d\'entrée'),
+                    subtitle: Text('${localStartDate.day}/${localStartDate.month}/${localStartDate.year}'),
+                    onTap: () async {
+                      final date = await showDatePicker(
+                        context: context,
+                        initialDate: localStartDate,
+                        firstDate: DateTime(2000),
+                        lastDate: DateTime.now(),
+                      );
+                      if (date != null) {
+                        setDialogState(() {
+                          localStartDate = date;
+                        });
+                      }
+                    },
+                  ),
+                ],
               ),
-              const SizedBox(height: 12),
-              TextField(
-                controller: _lastNameController,
-                decoration: const InputDecoration(
-                  labelText: 'Nom',
-                  border: OutlineInputBorder(),
-                ),
-              ),
-              const SizedBox(height: 12),
-              TextField(
-                controller: _emailController,
-                decoration: const InputDecoration(
-                  labelText: 'Email',
-                  border: OutlineInputBorder(),
-                ),
-                keyboardType: TextInputType.emailAddress,
-              ),
-              const SizedBox(height: 12),
-              TextField(
-                controller: _phoneController,
-                decoration: const InputDecoration(
-                  labelText: 'Téléphone',
-                  border: OutlineInputBorder(),
-                ),
-                keyboardType: TextInputType.phone,
-              ),
-              const SizedBox(height: 12),
-              DropdownButtonFormField<String>(
-                value: _selectedBuildingId,
-                decoration: const InputDecoration(
-                  labelText: 'Immeuble',
-                  border: OutlineInputBorder(),
-                ),
-                items: _buildings.map((building) {
-                  return DropdownMenuItem(
-                    value: building.id,
-                    child: Text(building.name),
-                  );
-                }).toList(),
-                onChanged: (value) {
-                  _updateLots(value);
-                },
-              ),
-              const SizedBox(height: 12),
-              DropdownButtonFormField<String>(
-                value: _selectedLotId,
-                decoration: const InputDecoration(
-                  labelText: 'Lot',
-                  border: OutlineInputBorder(),
-                ),
-                items: _availableLots.map((lot) {
-                  return DropdownMenuItem(
-                    value: lot.id,
-                    child: Text('${lot.name} - ${lot.rent.toStringAsFixed(2)} €'),
-                  );
-                }).toList(),
-                onChanged: (value) {
-                  setState(() {
-                    _selectedLotId = value;
-                  });
-                },
-              ),
-              const SizedBox(height: 12),
-              ListTile(
-                title: const Text('Date d\'entrée'),
-                subtitle: Text('${_startDate.day}/${_startDate.month}/${_startDate.year}'),
-                onTap: () async {
-                  final date = await showDatePicker(
-                    context: context,
-                    initialDate: _startDate,
-                    firstDate: DateTime(2000),
-                    lastDate: DateTime.now(),
-                  );
-                  if (date != null) {
-                    setState(() {
-                      _startDate = date;
-                    });
-                  }
-                },
-              ),
-            ],
-          ),
-        ),
+            ),
+          );
+        },
       ),
       actions: [
         TextButton(
@@ -316,6 +344,15 @@ class _TenantsScreenState extends State<TenantsScreen> {
         ),
         ElevatedButton(
           onPressed: () {
+            // Mettre à jour les variables globales
+            _firstNameController.text = localFirstName.text;
+            _lastNameController.text = localLastName.text;
+            _emailController.text = localEmail.text;
+            _phoneController.text = localPhone.text;
+            _startDate = localStartDate;
+            _selectedBuildingId = localBuildingId;
+            _selectedLotId = localLotId;
+            
             if (isEdit && tenant != null) {
               _updateTenant(tenant);
             } else {
