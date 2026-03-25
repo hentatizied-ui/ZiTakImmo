@@ -2,7 +2,6 @@ import 'dart:io';
 import 'package:path_provider/path_provider.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:open_file/open_file.dart';
-import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
 
 class PdfService {
@@ -31,7 +30,10 @@ class PdfService {
                 pw.Center(
                   child: pw.Text(
                     'QUITTANCE DE LOYER',
-                    style: pw.TextStyle(fontSize: 24, fontWeight: pw.FontWeight.bold),
+                    style: pw.TextStyle(
+                      fontSize: 24,
+                      fontWeight: pw.FontWeight.bold,
+                    ),
                   ),
                 ),
                 pw.SizedBox(height: 30),
@@ -62,8 +64,10 @@ class PdfService {
                   mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
                   children: [
                     pw.Text('Total :', style: pw.TextStyle(fontWeight: pw.FontWeight.bold)),
-                    pw.Text('${totalAmount.toStringAsFixed(2)} €',
-                        style: const pw.TextStyle(fontWeight: pw.FontWeight.bold)),
+                    pw.Text(
+                      '${totalAmount.toStringAsFixed(2)} €',
+                      style: pw.TextStyle(fontWeight: pw.FontWeight.bold),
+                    ),
                   ],
                 ),
                 pw.SizedBox(height: 30),
@@ -98,7 +102,6 @@ class PdfService {
       await Share.shareXFiles(
         [XFile(file.path)],
         text: 'Quittance de loyer',
-        mimeTypes: ['application/pdf'],
       );
       return true;
     } catch (e) {

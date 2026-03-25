@@ -1,28 +1,62 @@
 import 'package:flutter/material.dart';
 import 'package:zitakimmo/services/pdf_service.dart';
-import 'package:path_provider/path_provider.dart';
-import 'dart:io';
+import 'package:zitakimmo/models/payment.dart'; // Assure-toi que le chemin est correct
 
 class PaymentDetailsScreen extends StatefulWidget {
+  final Payment payment;
+  const PaymentDetailsScreen({super.key, required this.payment});
+
   @override
-  _PaymentDetailsScreenState createState() => _PaymentDetailsScreenState();
+  State<PaymentDetailsScreen> createState() => _PaymentDetailsScreenState();
 }
 
 class _PaymentDetailsScreenState extends State<PaymentDetailsScreen> {
-  // Contrôleurs et variables
   final _formKey = GlobalKey<FormState>();
   bool _isGenerating = false;
 
-  // Exemples de données (remplace par tes propres données)
-  String _tenantName = 'Jean Dupont';
-  String _propertyAddress = '12 rue de Paris, 75001 Paris';
-  double _rentAmount = 800.0;
-  double _chargesAmount = 150.0;
-  double _totalAmount = 950.0;
-  String _month = 'Mars 2026';
-  String _paymentDate = '25/03/2026';
-  String _paymentMethod = 'Virement bancaire';
-  String _reference = 'QUIT-2026-001';
+  // Variables pré-remplies à partir du paiement reçu
+  late String _tenantName;
+  late String _propertyAddress; // Utilise lotName ou adresse si disponible
+  late double _rentAmount;
+  late double _chargesAmount;
+  late double _totalAmount;
+  late String _month;
+  late String _paymentDate;
+  late String _paymentMethod;
+  late String _reference;
+
+  @override
+  void initState() {
+    super.initState();
+    // Initialiser les champs avec les données du paiement
+    final p = widget.payment;
+    _tenantName = p.tenantName;
+    _propertyAddress = p.lotName; // On utilise le nom du lot comme adresse
+    _rentAmount = p.amount; // Ici le loyer seul, mais on peut affiner
+    _chargesAmount = 0.0; // Si ton modèle ne contient pas de charges, laisser 0
+    _totalAmount = p.amount;
+
+    // Mois à partir de dueDate
+    _month = _formatMonth(p.dueDate);
+    // Date de paiement : si déjà payé, utiliser paymentDate, sinon aujourd'hui
+    _paymentDate = p.paymentDate != null
+        ? _formatDate(p.paymentDate!)
+        : _formatDate(DateTime.now());
+    _paymentMethod = 'Virement'; // Valeur par défaut, à adapter si disponible
+    _reference = p.id; // Utiliser l'ID du paiement comme référence
+  }
+
+  String _formatMonth(DateTime date) {
+    const months = [
+      'Janvier', 'Février', 'Mars', 'Avril', 'Mai', 'Juin',
+      'Juillet', 'Août', 'Septembre', 'Octobre', 'Novembre', 'Décembre'
+    ];
+    return '${months[date.month - 1]} ${date.year}';
+  }
+
+  String _formatDate(DateTime date) {
+    return '${date.day}/${date.month}/${date.year}';
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -50,19 +84,22 @@ class _PaymentDetailsScreenState extends State<PaymentDetailsScreen> {
                 initialValue: _rentAmount.toString(),
                 decoration: const InputDecoration(labelText: 'Loyer (€)'),
                 keyboardType: TextInputType.number,
-                onChanged: (value) => _rentAmount = double.tryParse(value) ?? 0,
+                onChanged: (value) =>
+                    _rentAmount = double.tryParse(value) ?? 0,
               ),
               TextFormField(
                 initialValue: _chargesAmount.toString(),
                 decoration: const InputDecoration(labelText: 'Charges (€)'),
                 keyboardType: TextInputType.number,
-                onChanged: (value) => _chargesAmount = double.tryParse(value) ?? 0,
+                onChanged: (value) =>
+                    _chargesAmount = double.tryParse(value) ?? 0,
               ),
               TextFormField(
                 initialValue: _totalAmount.toString(),
                 decoration: const InputDecoration(labelText: 'Total (€)'),
                 keyboardType: TextInputType.number,
-                onChanged: (value) => _totalAmount = double.tryParse(value) ?? 0,
+                onChanged: (value) =>
+                    _totalAmount = double.tryParse(value) ?? 0,
               ),
               TextFormField(
                 initialValue: _month,
@@ -117,7 +154,6 @@ class _PaymentDetailsScreenState extends State<PaymentDetailsScreen> {
       );
 
       if (file != null) {
-        // Proposer le partage après génération
         final shouldShare = await showDialog<bool>(
           context: context,
           builder: (context) => AlertDialog(
@@ -141,9 +177,6 @@ class _PaymentDetailsScreenState extends State<PaymentDetailsScreen> {
         } else {
           await PdfService.openPDF(file);
         }
-
-        // Optionnel : supprimer le fichier après un certain temps
-        // await PdfService.deletePDF(file);
       } else {
         _showSnackBar('Erreur lors de la génération du PDF');
       }

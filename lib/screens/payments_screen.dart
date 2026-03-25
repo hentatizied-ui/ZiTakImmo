@@ -6,7 +6,6 @@ import '../models/tenant.dart';
 import '../models/payment.dart';
 import '../models/property.dart';
 import '../services/pdf_service.dart';
-import '../services/share_service.dart';
 import 'payment_details.dart';
 
 class PaymentsScreen extends StatefulWidget {
@@ -29,7 +28,7 @@ class _PaymentsScreenState extends State<PaymentsScreen> {
 
   Future<void> _loadData() async {
     final prefs = await SharedPreferences.getInstance();
-    
+
     // Charger les locataires
     final String? tenantsJson = prefs.getString('tenants');
     if (tenantsJson != null && tenantsJson.isNotEmpty) {
@@ -54,10 +53,10 @@ class _PaymentsScreenState extends State<PaymentsScreen> {
   Future<void> _generateInitialPayments() async {
     final now = DateTime.now();
     final payments = <Payment>[];
-    
+
     for (var tenant in _tenants) {
       final lotRent = await _getLotRent(tenant.buildingId, tenant.lotId);
-      
+
       for (int i = 0; i < 3; i++) {
         final dueDate = DateTime(now.year, now.month + i, 5);
         payments.add(Payment(
@@ -73,7 +72,7 @@ class _PaymentsScreenState extends State<PaymentsScreen> {
         ));
       }
     }
-    
+
     setState(() {
       _payments = payments;
     });
@@ -82,7 +81,7 @@ class _PaymentsScreenState extends State<PaymentsScreen> {
 
   Future<double> _getLotRent(String? buildingId, String? lotId) async {
     if (buildingId == null || lotId == null) return 0;
-    
+
     final prefs = await SharedPreferences.getInstance();
     final String? buildingsJson = prefs.getString('buildings');
     if (buildingsJson != null && buildingsJson.isNotEmpty) {
@@ -90,11 +89,11 @@ class _PaymentsScreenState extends State<PaymentsScreen> {
       final buildings = decoded.map((e) => Immeuble.fromJson(e)).toList();
       final building = buildings.firstWhere(
         (b) => b.id == buildingId,
-        orElse: () => Immeuble(id: '', name: '', address: '', lots: [])
+        orElse: () => Immeuble(id: '', name: '', address: '', lots: []),
       );
       final lot = building.lots.firstWhere(
         (l) => l.id == lotId,
-        orElse: () => Lot(id: '', name: '', type: '', area: 0, rent: 0, rooms: 0, status: '', floor: '')
+        orElse: () => Lot(id: '', name: '', type: '', area: 0, rent: 0, rooms: 0, status: '', floor: ''),
       );
       return lot.rent;
     }
@@ -146,9 +145,7 @@ class _PaymentsScreenState extends State<PaymentsScreen> {
         children: [
           _buildTabBar(),
           Expanded(
-            child: _selectedIndex == 0
-                ? _buildPendingList()
-                : _buildHistoryList(),
+            child: _selectedIndex == 0 ? _buildPendingList() : _buildHistoryList(),
           ),
         ],
       ),
@@ -195,7 +192,7 @@ class _PaymentsScreenState extends State<PaymentsScreen> {
         borderRadius: BorderRadius.circular(16),
         boxShadow: [
           BoxShadow(
-            color: Colors.grey.withOpacity(0.1),
+            color: Colors.grey.withValues(alpha: 0.1), // ✅ withOpacity -> withValues
             blurRadius: 8,
           ),
         ],
@@ -368,7 +365,7 @@ class _PaymentsScreenState extends State<PaymentsScreen> {
 
   Widget _buildPaymentCard(Payment payment, {bool isHistory = false}) {
     final isLate = payment.isLate && !isHistory;
-    
+
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
       decoration: BoxDecoration(
@@ -376,7 +373,7 @@ class _PaymentsScreenState extends State<PaymentsScreen> {
         borderRadius: BorderRadius.circular(16),
         boxShadow: [
           BoxShadow(
-            color: Colors.grey.withOpacity(0.1),
+            color: Colors.grey.withValues(alpha: 0.1), // ✅ withOpacity -> withValues
             blurRadius: 8,
           ),
         ],
@@ -386,13 +383,12 @@ class _PaymentsScreenState extends State<PaymentsScreen> {
         child: InkWell(
           borderRadius: BorderRadius.circular(16),
           onTap: () async {
+            // ✅ Navigation : on passe l'objet payment directement
             final result = await Navigator.push(
               context,
               MaterialPageRoute(
                 builder: (context) => PaymentDetailsScreen(
-                  payment: payment,
-                  tenantName: payment.tenantName,
-                  lotName: payment.lotName,
+                  payment: payment, // on passe l'objet Payment complet
                 ),
               ),
             );
@@ -408,12 +404,19 @@ class _PaymentsScreenState extends State<PaymentsScreen> {
                   width: 50,
                   height: 50,
                   decoration: BoxDecoration(
-                    color: (isHistory ? Colors.green : (isLate ? Colors.red : Colors.orange)).withOpacity(0.1),
+                    color: (isHistory
+                            ? Colors.green
+                            : (isLate ? Colors.red : Colors.orange))
+                        .withValues(alpha: 0.1), // ✅ withOpacity -> withValues
                     borderRadius: BorderRadius.circular(12),
                   ),
                   child: Icon(
-                    isHistory ? Icons.receipt : (isLate ? Icons.warning : Icons.pending),
-                    color: isHistory ? Colors.green : (isLate ? Colors.red : Colors.orange),
+                    isHistory
+                        ? Icons.receipt
+                        : (isLate ? Icons.warning : Icons.pending),
+                    color: isHistory
+                        ? Colors.green
+                        : (isLate ? Colors.red : Colors.orange),
                   ),
                 ),
                 const SizedBox(width: 12),
@@ -460,7 +463,7 @@ class _PaymentsScreenState extends State<PaymentsScreen> {
                               margin: const EdgeInsets.only(left: 8),
                               padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                               decoration: BoxDecoration(
-                                color: Colors.red.withOpacity(0.1),
+                                color: Colors.red.withValues(alpha: 0.1), // ✅ withOpacity -> withValues
                                 borderRadius: BorderRadius.circular(8),
                               ),
                               child: Text(
@@ -533,7 +536,7 @@ class _PaymentsScreenState extends State<PaymentsScreen> {
             TextButton(
               onPressed: () async {
                 Navigator.pop(context);
-                
+
                 final updatedPayment = Payment(
                   id: payment.id,
                   tenantId: payment.tenantId,
@@ -546,14 +549,15 @@ class _PaymentsScreenState extends State<PaymentsScreen> {
                   paymentDate: DateTime.now(),
                   status: 'paid',
                 );
-                
+
                 final index = _payments.indexWhere((p) => p.id == payment.id);
                 setState(() {
                   _payments[index] = updatedPayment;
                 });
                 await _savePayments();
-                
-                _generateAndSendReceipt(updatedPayment);
+
+                // ✅ Génération et partage du PDF (remplacement de generateReceiptBytes)
+                await _generateAndShareReceipt(updatedPayment);
               },
               child: Text(
                 'Valider',
@@ -569,98 +573,69 @@ class _PaymentsScreenState extends State<PaymentsScreen> {
     );
   }
 
-  void _generateAndSendReceipt(Payment payment) {
-    showModalBottomSheet(
-      context: context,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-      ),
-      builder: (context) {
-        return Container(
-          padding: const EdgeInsets.all(24),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              const Icon(Icons.receipt, size: 60, color: Color(0xFF1E88E5)),
-              const SizedBox(height: 16),
-              Text(
-                'Quittance de loyer',
-                style: GoogleFonts.urbanist(
-                  fontSize: 20,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-              const SizedBox(height: 8),
-              Text(
-                'Montant : ${payment.formattedAmount}',
-                style: GoogleFonts.urbanist(fontSize: 16),
-              ),
-              Text(
-                'Date : ${DateTime.now().day}/${DateTime.now().month}/${DateTime.now().year}',
-                style: GoogleFonts.urbanist(fontSize: 14, color: Colors.grey),
-              ),
-              const SizedBox(height: 24),
-              Row(
-                children: [
-                  Expanded(
-                    child: _buildSendButton(
-                      icon: Icons.email,
-                      label: 'Email',
-                      color: Colors.blue,
-                      onPressed: () async {
-                        Navigator.pop(context);
-                        final pdfBytes = await PdfService.generateReceiptBytes(payment);
-                        await ShareService.sendEmail(payment.tenantName, pdfBytes);
-                      },
-                    ),
-                  ),
-                  const SizedBox(width: 16),
-                  Expanded(
-                    child: _buildSendButton(
-                      icon: Icons.message,
-                      label: 'WhatsApp',
-                      color: Colors.green,
-                      onPressed: () async {
-                        Navigator.pop(context);
-                        final pdfBytes = await PdfService.generateReceiptBytes(payment);
-                        await ShareService.sendWhatsApp(payment.tenantName, pdfBytes);
-                      },
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 16),
+  // ✅ Nouvelle méthode pour générer et partager le PDF
+  Future<void> _generateAndShareReceipt(Payment payment) async {
+    try {
+      // Utiliser le service PDF pour générer et sauvegarder le fichier
+      final file = await PdfService.generateAndSave(
+        tenantName: payment.tenantName,
+        propertyAddress: payment.lotName, // ou une adresse si disponible
+        rentAmount: payment.amount,
+        chargesAmount: 0.0, // ajuste si besoin
+        totalAmount: payment.amount,
+        month: _formatMonth(payment.dueDate),
+        paymentDate: _formatDate(payment.paymentDate ?? DateTime.now()),
+        paymentMethod: 'Virement', // à personnaliser
+        reference: payment.id,
+      );
+
+      if (file != null) {
+        // Proposer le partage via un modal
+        final shouldShare = await showDialog<bool>(
+          context: context,
+          builder: (context) => AlertDialog(
+            title: const Text('Quittance générée'),
+            content: const Text('Voulez-vous partager ce PDF ?'),
+            actions: [
               TextButton(
-                onPressed: () => Navigator.pop(context),
-                child: Text(
-                  'Plus tard',
-                  style: GoogleFonts.urbanist(color: Colors.grey),
-                ),
+                onPressed: () => Navigator.pop(context, false),
+                child: const Text('Ouvrir'),
+              ),
+              TextButton(
+                onPressed: () => Navigator.pop(context, true),
+                child: const Text('Partager'),
               ),
             ],
           ),
         );
-      },
-    );
+
+        if (shouldShare == true) {
+          await PdfService.sharePDF(file);
+        } else {
+          await PdfService.openPDF(file);
+        }
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Erreur lors de la génération du PDF')),
+        );
+      }
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Erreur : $e')),
+      );
+    }
   }
 
-  Widget _buildSendButton({
-    required IconData icon,
-    required String label,
-    required Color color,
-    required VoidCallback onPressed,
-  }) {
-    return ElevatedButton.icon(
-      onPressed: onPressed,
-      icon: Icon(icon, size: 20, color: Colors.white),
-      label: Text(label),
-      style: ElevatedButton.styleFrom(
-        backgroundColor: color,
-        padding: const EdgeInsets.symmetric(vertical: 12),
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(12),
-        ),
-      ),
-    );
+  // Petite fonction utilitaire pour formater la date
+  String _formatDate(DateTime date) {
+    return '${date.day}/${date.month}/${date.year}';
+  }
+
+  String _formatMonth(DateTime date) {
+    const months = [
+      'Janvier', 'Février', 'Mars', 'Avril', 'Mai', 'Juin',
+      'Juillet', 'Août', 'Septembre', 'Octobre', 'Novembre', 'Décembre'
+    ];
+    return '${months[date.month - 1]} ${date.year}';
   }
 }
