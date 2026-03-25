@@ -269,6 +269,65 @@ class _TenantPaymentsScreenState extends State<TenantPaymentsScreen> {
     }
   }
 
+  // ----------------------------------------------------------------------
+  // Gestion PDF (remplace les anciennes méthodes)
+  // ----------------------------------------------------------------------
+  Future<void> _handlePDFAction(Payment payment, {bool share = true}) async {
+    try {
+      final month = _formatMonth(payment.dueDate);
+      final paymentDate = payment.paymentDate != null
+          ? _formatDate(payment.paymentDate!)
+          : _formatDate(DateTime.now());
+
+      final file = await PdfService.generateAndSave(
+        tenantName: payment.tenantName,
+        propertyAddress: payment.lotName,
+        rentAmount: payment.amount,
+        chargesAmount: 0.0, // à ajuster si besoin
+        totalAmount: payment.amount,
+        month: month,
+        paymentDate: paymentDate,
+        paymentMethod: 'Virement', // à personnaliser
+        reference: payment.id,
+      );
+
+      if (file != null) {
+        if (share) {
+          await PdfService.sharePDF(file);
+        } else {
+          await PdfService.openPDF(file);
+        }
+      } else {
+        _showSnackBar('Erreur lors de la génération du PDF');
+      }
+    } catch (e) {
+      _showSnackBar('Une erreur est survenue : $e');
+    }
+  }
+
+  // Nouvelle méthode pour générer et partager (appelée depuis _generateAndSendReceipt)
+  Future<void> _generateAndShareReceipt(Payment payment) async {
+    await _handlePDFAction(payment, share: true);
+  }
+
+  // Nouvelle méthode pour ouvrir le PDF (appelée depuis _viewReceipt)
+  Future<void> _openReceipt(Payment payment) async {
+    await _handlePDFAction(payment, share: false);
+  }
+
+  String _formatDate(DateTime date) {
+    return '${date.day}/${date.month}/${date.year}';
+  }
+
+  void _showSnackBar(String message) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(message)),
+    );
+  }
+
+  // ----------------------------------------------------------------------
+  // Méthodes d'affichage (modifiées pour utiliser les nouvelles méthodes)
+  // ----------------------------------------------------------------------
   void _generateAndSendReceipt(Payment payment) {
     showModalBottomSheet(
       context: context,
@@ -309,8 +368,7 @@ class _TenantPaymentsScreenState extends State<TenantPaymentsScreen> {
                       color: Colors.blue,
                       onPressed: () async {
                         Navigator.pop(context);
-                        final pdfBytes = await PdfService.generateReceiptBytes(payment);
-                        await PdfService.shareReceipt(payment, pdfBytes);
+                        await _generateAndShareReceipt(payment);
                       },
                     ),
                   ),
@@ -322,8 +380,7 @@ class _TenantPaymentsScreenState extends State<TenantPaymentsScreen> {
                       color: Colors.green,
                       onPressed: () async {
                         Navigator.pop(context);
-                        final pdfBytes = await PdfService.generateReceiptBytes(payment);
-                        await PdfService.shareReceipt(payment, pdfBytes);
+                        await _generateAndShareReceipt(payment);
                       },
                     ),
                   ),
@@ -388,8 +445,7 @@ class _TenantPaymentsScreenState extends State<TenantPaymentsScreen> {
                       color: Colors.red,
                       onPressed: () async {
                         Navigator.pop(context);
-                        final pdfBytes = await PdfService.generateReceiptBytes(payment);
-                        await PdfService.openReceipt(payment, pdfBytes);
+                        await _openReceipt(payment);
                       },
                     ),
                   ),
@@ -401,8 +457,7 @@ class _TenantPaymentsScreenState extends State<TenantPaymentsScreen> {
                       color: Colors.blue,
                       onPressed: () async {
                         Navigator.pop(context);
-                        final pdfBytes = await PdfService.generateReceiptBytes(payment);
-                        await PdfService.shareReceipt(payment, pdfBytes);
+                        await _generateAndShareReceipt(payment);
                       },
                     ),
                   ),
