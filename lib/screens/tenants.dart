@@ -69,23 +69,67 @@ class _TenantsScreenState extends State<TenantsScreen> {
     await prefs.setString('tenants', jsonString);
   }
 
+  // Récupère les lots disponibles (libres) pour un immeuble
+  List<Lot> _getAvailableLots(String? buildingId) {
+    if (buildingId == null) return [];
+    
+    final building = _buildings.firstWhere(
+      (b) => b.id == buildingId,
+      orElse: () => Immeuble(id: '', name: '', address: '', lots: []),
+    );
+    
+    // Filtrer uniquement les lots avec statut 'libre'
+    return building.lots.where((lot) => lot.status.toLowerCase() == 'libre').toList();
+  }
+
   void _updateLots(String? buildingId) {
     setState(() {
       _selectedBuildingId = buildingId;
       _selectedLotId = null;
-      
-      if (buildingId == null) {
-        _availableLots = [];
-        return;
-      }
-      
-      final building = _buildings.firstWhere(
-        (b) => b.id == buildingId,
-        orElse: () => Immeuble(id: '', name: '', address: '', lots: []),
-      );
-      
-      _availableLots = building.lots;
+      _availableLots = _getAvailableLots(buildingId);
     });
+  }
+
+  // Obtenir le texte du statut avec icône
+  String _getStatusText(String status) {
+    switch (status.toLowerCase()) {
+      case 'libre':
+        return 'Libre';
+      case 'occupé':
+        return 'Occupé';
+      case 'travaux':
+        return 'En travaux';
+      default:
+        return status;
+    }
+  }
+
+  // Obtenir la couleur du statut
+  Color _getStatusColor(String status) {
+    switch (status.toLowerCase()) {
+      case 'libre':
+        return Colors.green;
+      case 'occupé':
+        return Colors.red;
+      case 'travaux':
+        return Colors.orange;
+      default:
+        return Colors.grey;
+    }
+  }
+
+  // Obtenir l'icône du statut
+  IconData _getStatusIcon(String status) {
+    switch (status.toLowerCase()) {
+      case 'libre':
+        return Icons.check_circle;
+      case 'occupé':
+        return Icons.person;
+      case 'travaux':
+        return Icons.build;
+      default:
+        return Icons.help;
+    }
   }
 
   void _addTenant() async {
@@ -284,11 +328,14 @@ class _TenantsScreenState extends State<TenantsScreen> {
                         if (value == null) {
                           localAvailableLots = [];
                         } else {
+                          // Récupérer uniquement les lots libres
                           final building = _buildings.firstWhere(
                             (b) => b.id == value,
                             orElse: () => Immeuble(id: '', name: '', address: '', lots: []),
                           );
-                          localAvailableLots = building.lots;
+                          localAvailableLots = building.lots
+                              .where((lot) => lot.status.toLowerCase() == 'libre')
+                              .toList();
                         }
                       });
                     },
@@ -304,7 +351,32 @@ class _TenantsScreenState extends State<TenantsScreen> {
                     items: localAvailableLots.map((lot) {
                       return DropdownMenuItem(
                         value: lot.id,
-                        child: Text('${lot.name} - ${lot.rent.toStringAsFixed(2)} €'),
+                        child: Row(
+                          children: [
+                            Icon(
+                              _getStatusIcon(lot.status),
+                              size: 16,
+                              color: _getStatusColor(lot.status),
+                            ),
+                            const SizedBox(width: 8),
+                            Text('${lot.name} - ${lot.rent.toStringAsFixed(2)} €'),
+                            const SizedBox(width: 8),
+                            Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                              decoration: BoxDecoration(
+                                color: _getStatusColor(lot.status).withValues(alpha: 0.1),
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                              child: Text(
+                                _getStatusText(lot.status),
+                                style: TextStyle(
+                                  fontSize: 10,
+                                  color: _getStatusColor(lot.status),
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
                       );
                     }).toList(),
                     onChanged: (value) {
