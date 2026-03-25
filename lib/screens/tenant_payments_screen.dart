@@ -5,7 +5,6 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:url_launcher/url_launcher.dart';
-import 'package:path_provider/path_provider.dart';
 import '../models/tenant.dart';
 import '../models/payment.dart';
 import '../models/property.dart';
@@ -32,7 +31,7 @@ class _TenantPaymentsScreenState extends State<TenantPaymentsScreen> {
   }
 
   // =========================================================================
-  // Chargement des données (inchangé)
+  // Chargement des données
   // =========================================================================
   Future<void> _loadData() async {
     setState(() => _isLoading = true);
@@ -161,7 +160,7 @@ class _TenantPaymentsScreenState extends State<TenantPaymentsScreen> {
   double get _totalPaid => _paidPayments.fold(0, (sum, p) => sum + p.amount);
 
   // =========================================================================
-  // Validation du paiement (inchangé)
+  // Validation du paiement
   // =========================================================================
   Future<void> _validatePayment(Payment payment) async {
     final now = DateTime.now();
@@ -282,10 +281,9 @@ class _TenantPaymentsScreenState extends State<TenantPaymentsScreen> {
   }
 
   // =========================================================================
-  // Gestion PDF améliorée pour iOS
+  // Gestion PDF - Partage avec pièce jointe
   // =========================================================================
   
-  // Générer et sauvegarder le PDF
   Future<File?> _generatePDF(Payment payment) async {
     try {
       final month = _formatMonth(payment.dueDate);
@@ -306,70 +304,37 @@ class _TenantPaymentsScreenState extends State<TenantPaymentsScreen> {
       );
       
       if (file != null && await file.exists()) {
-        print('✅ PDF généré avec succès: ${file.path}');
-        print('📏 Taille: ${await file.length()} bytes');
         return file;
-      } else {
-        _showSnackBar('Erreur: fichier PDF non trouvé');
-        return null;
       }
+      return null;
     } catch (e) {
-      print('❌ Erreur génération PDF: $e');
       _showSnackBar('Erreur de génération PDF : $e');
       return null;
     }
   }
 
-  // Méthode universelle pour partager le PDF
-  Future<void> _sharePDFFile(File file, {String? customText}) async {
+  // PARTAGE AVEC PIÈCE JOINTE (Email et WhatsApp)
+  Future<void> _sharePDFWithAttachment(Payment payment, {String? appName}) async {
+    final file = await _generatePDF(payment);
+    if (file == null) return;
+
     try {
-      // Sur iOS, on utilise Share.shareXFiles avec un XFile
       final xFile = XFile(file.path);
-      
-      final result = await Share.shareXFiles(
+      await Share.shareXFiles(
         [xFile],
-        text: customText ?? 'Quittance de loyer',
+        text: 'Quittance de loyer - ${_formatMonth(payment.dueDate)}',
         subject: 'Quittance de loyer',
       );
-      
-      print('✅ Partage effectué avec succès');
+      _showSnackBar('Partage du PDF...');
     } catch (e) {
-      print('❌ Erreur lors du partage: $e');
       _showSnackBar('Erreur lors du partage: $e');
     }
   }
 
-  // Envoi par email avec pièce jointe
-  Future<void> _sendByEmail(Payment payment) async {
-    final tenant = widget.tenant;
-    if (tenant.email == null || tenant.email!.isEmpty) {
-      _showSnackBar('Aucune adresse email renseignée pour ce locataire');
-      return;
-    }
-
-    final file = await _generatePDF(payment);
-    if (file == null) return;
-
-    // Tentative 1: Partager le fichier via share_plus
-    await _sharePDFFile(file, customText: 'Quittance de loyer - ${_formatMonth(payment.dueDate)}');
-  }
-
-  // Envoi par WhatsApp avec pièce jointe
-  Future<void> _sendByWhatsApp(Payment payment) async {
-    final tenant = widget.tenant;
-    if (tenant.phone == null || tenant.phone!.isEmpty) {
-      _showSnackBar('Aucun numéro de téléphone renseigné pour ce locataire');
-      return;
-    }
-
-    final file = await _generatePDF(payment);
-    if (file == null) return;
-
-    // Tentative 1: Partager le fichier via share_plus
-    await _sharePDFFile(file, customText: 'Quittance de loyer - ${_formatMonth(payment.dueDate)}');
-  }
-
-  // Ouvre l'application Mail sans pièce jointe
+  // =========================================================================
+  // Ouverture directe des applications (sans pièce jointe)
+  // =========================================================================
+  
   Future<void> _openMailApp(Payment payment) async {
     final tenant = widget.tenant;
     if (tenant.email == null || tenant.email!.isEmpty) {
@@ -388,13 +353,11 @@ class _TenantPaymentsScreenState extends State<TenantPaymentsScreen> {
 
     if (await canLaunchUrl(mailtoUri)) {
       await launchUrl(mailtoUri, mode: LaunchMode.externalApplication);
-      _showSnackBar('Ouverture de Mail...');
     } else {
       _showSnackBar('Impossible d\'ouvrir l\'application Mail');
     }
   }
 
-  // Ouvre WhatsApp directement (sans pièce jointe)
   Future<void> _openWhatsApp(Payment payment) async {
     final tenant = widget.tenant;
     if (tenant.phone == null || tenant.phone!.isEmpty) {
@@ -402,10 +365,9 @@ class _TenantPaymentsScreenState extends State<TenantPaymentsScreen> {
       return;
     }
 
-    // Formater le numéro
+    // Formater le numéro pour WhatsApp
     String phone = tenant.phone!.trim().replaceAll(RegExp(r'\s+'), '');
     if (!phone.startsWith('+')) {
-      // Pour la France, ajouter +33
       if (phone.startsWith('0')) {
         phone = '+33${phone.substring(1)}';
       } else {
@@ -418,14 +380,13 @@ class _TenantPaymentsScreenState extends State<TenantPaymentsScreen> {
 
     if (await canLaunchUrl(whatsappUri)) {
       await launchUrl(whatsappUri, mode: LaunchMode.externalApplication);
-      _showSnackBar('Ouverture de WhatsApp...');
     } else {
       _showSnackBar('WhatsApp n\'est pas installé ou le numéro est invalide');
     }
   }
 
   // =========================================================================
-  // Affichage des modals pour la quittance
+  // Affichage des modals
   // =========================================================================
   void _generateAndSendReceipt(Payment payment) {
     showModalBottomSheet(
@@ -459,9 +420,9 @@ class _TenantPaymentsScreenState extends State<TenantPaymentsScreen> {
               ),
               const SizedBox(height: 24),
 
-              // === 1ère rangée : Partager avec fichier ===
+              // === PARTAGE AVEC PIÈCE JOINTE ===
               Text(
-                'Partager le PDF',
+                '📎 Partager le PDF',
                 style: GoogleFonts.urbanist(fontSize: 14, fontWeight: FontWeight.w600),
               ),
               const SizedBox(height: 8),
@@ -474,7 +435,7 @@ class _TenantPaymentsScreenState extends State<TenantPaymentsScreen> {
                       color: Colors.blue,
                       onPressed: () async {
                         Navigator.pop(context);
-                        await _sendByEmail(payment);
+                        await _sharePDFWithAttachment(payment);
                       },
                     ),
                   ),
@@ -486,7 +447,7 @@ class _TenantPaymentsScreenState extends State<TenantPaymentsScreen> {
                       color: Colors.green,
                       onPressed: () async {
                         Navigator.pop(context);
-                        await _sendByWhatsApp(payment);
+                        await _sharePDFWithAttachment(payment);
                       },
                     ),
                   ),
@@ -494,9 +455,9 @@ class _TenantPaymentsScreenState extends State<TenantPaymentsScreen> {
               ),
               const SizedBox(height: 20),
 
-              // === 2ème rangée : Ouverture directe (sans fichier) ===
+              // === OUVERTURE DIRECTE (sans pièce jointe) ===
               Text(
-                'Ouverture directe',
+                '💬 Ouvrir directement',
                 style: GoogleFonts.urbanist(fontSize: 14, fontWeight: FontWeight.w600),
               ),
               const SizedBox(height: 8),
@@ -600,8 +561,7 @@ class _TenantPaymentsScreenState extends State<TenantPaymentsScreen> {
                       color: Colors.blue,
                       onPressed: () async {
                         Navigator.pop(context);
-                        final file = await _generatePDF(payment);
-                        if (file != null) await _sharePDFFile(file);
+                        await _sharePDFWithAttachment(payment);
                       },
                     ),
                   ),
