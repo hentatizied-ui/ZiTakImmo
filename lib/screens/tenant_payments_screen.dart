@@ -1,7 +1,10 @@
 import 'dart:convert';
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:share_plus/share_plus.dart';
+import 'package:url_launcher/url_launcher.dart';
 import '../models/tenant.dart';
 import '../models/payment.dart';
 import '../models/property.dart';
@@ -27,17 +30,14 @@ class _TenantPaymentsScreenState extends State<TenantPaymentsScreen> {
     _loadData();
   }
 
+  // =========================================================================
+  // Chargement des données (inchangé)
+  // =========================================================================
   Future<void> _loadData() async {
-    setState(() {
-      _isLoading = true;
-    });
-    
+    setState(() => _isLoading = true);
     await _getMonthlyRent();
     await _loadPayments();
-    
-    setState(() {
-      _isLoading = false;
-    });
+    setState(() => _isLoading = false);
   }
 
   Future<void> _getMonthlyRent() async {
@@ -45,7 +45,7 @@ class _TenantPaymentsScreenState extends State<TenantPaymentsScreen> {
       _monthlyRent = 0;
       return;
     }
-    
+
     final prefs = await SharedPreferences.getInstance();
     final String? buildingsJson = prefs.getString('buildings');
     if (buildingsJson != null && buildingsJson.isNotEmpty) {
@@ -53,11 +53,19 @@ class _TenantPaymentsScreenState extends State<TenantPaymentsScreen> {
       final buildings = decoded.map((e) => Immeuble.fromJson(e)).toList();
       final building = buildings.firstWhere(
         (b) => b.id == widget.tenant.buildingId,
-        orElse: () => Immeuble(id: '', name: '', address: '', lots: [])
+        orElse: () => Immeuble(id: '', name: '', address: '', lots: []),
       );
       final lot = building.lots.firstWhere(
         (l) => l.id == widget.tenant.lotId,
-        orElse: () => Lot(id: '', name: '', type: '', area: 0, rent: 0, rooms: 0, status: '', floor: '')
+        orElse: () => Lot(
+            id: '',
+            name: '',
+            type: '',
+            area: 0,
+            rent: 0,
+            rooms: 0,
+            status: '',
+            floor: ''),
       );
       _monthlyRent = lot.rent;
     }
@@ -66,18 +74,20 @@ class _TenantPaymentsScreenState extends State<TenantPaymentsScreen> {
   Future<void> _loadPayments() async {
     final prefs = await SharedPreferences.getInstance();
     final String? paymentsJson = prefs.getString('payments');
-    
+
     List<Payment> existingPayments = [];
     if (paymentsJson != null && paymentsJson.isNotEmpty) {
       final List<dynamic> decoded = jsonDecode(paymentsJson);
       existingPayments = decoded.map((e) => Payment.fromJson(e)).toList();
-      existingPayments = existingPayments.where((p) => p.tenantId == widget.tenant.id).toList();
+      existingPayments = existingPayments
+          .where((p) => p.tenantId == widget.tenant.id)
+          .toList();
     }
-    
+
     final now = DateTime.now();
     final startDate = widget.tenant.startDate;
     final payments = <Payment>[];
-    
+
     DateTime current = DateTime(startDate.year, startDate.month, 5);
     while (current.isBefore(DateTime(now.year, now.month + 12, 5))) {
       final existingPayment = existingPayments.firstWhere(
@@ -94,9 +104,11 @@ class _TenantPaymentsScreenState extends State<TenantPaymentsScreen> {
           status: 'pending',
         ),
       );
-      
+
       payments.add(Payment(
-        id: existingPayment.id.isNotEmpty ? existingPayment.id : '${widget.tenant.id}_${current.year}_${current.month}',
+        id: existingPayment.id.isNotEmpty
+            ? existingPayment.id
+            : '${widget.tenant.id}_${current.year}_${current.month}',
         tenantId: widget.tenant.id,
         tenantName: widget.tenant.fullName,
         buildingId: widget.tenant.buildingId ?? '',
@@ -107,13 +119,11 @@ class _TenantPaymentsScreenState extends State<TenantPaymentsScreen> {
         paymentDate: existingPayment.paymentDate,
         status: existingPayment.status,
       ));
-      
+
       current = DateTime(current.year, current.month + 1, 5);
     }
-    
-    setState(() {
-      _payments = payments;
-    });
+
+    setState(() => _payments = payments);
     await _savePayments();
   }
 
@@ -121,46 +131,46 @@ class _TenantPaymentsScreenState extends State<TenantPaymentsScreen> {
     final prefs = await SharedPreferences.getInstance();
     final String? allPaymentsJson = prefs.getString('payments');
     List<Payment> allPayments = [];
-    
+
     if (allPaymentsJson != null && allPaymentsJson.isNotEmpty) {
       final List<dynamic> decoded = jsonDecode(allPaymentsJson);
       allPayments = decoded.map((e) => Payment.fromJson(e)).toList();
     }
-    
+
     allPayments.removeWhere((p) => p.tenantId == widget.tenant.id);
     allPayments.addAll(_payments);
-    
-    final String jsonString = jsonEncode(allPayments.map((e) => e.toJson()).toList());
+
+    final String jsonString =
+        jsonEncode(allPayments.map((e) => e.toJson()).toList());
     await prefs.setString('payments', jsonString);
   }
 
-  List<Payment> get _pendingPayments {
-    return _payments.where((p) => p.status == 'pending').toList();
-  }
+  // =========================================================================
+  // Getters
+  // =========================================================================
+  List<Payment> get _pendingPayments =>
+      _payments.where((p) => p.status == 'pending').toList();
 
-  List<Payment> get _paidPayments {
-    return _payments.where((p) => p.status == 'paid').toList();
-  }
+  List<Payment> get _paidPayments =>
+      _payments.where((p) => p.status == 'paid').toList();
 
-  double get _totalPending {
-    return _pendingPayments.fold(0, (sum, p) => sum + p.amount);
-  }
+  double get _totalPending =>
+      _pendingPayments.fold(0, (sum, p) => sum + p.amount);
 
-  double get _totalPaid {
-    return _paidPayments.fold(0, (sum, p) => sum + p.amount);
-  }
+  double get _totalPaid => _paidPayments.fold(0, (sum, p) => sum + p.amount);
 
+  // =========================================================================
+  // Validation du paiement (inchangé)
+  // =========================================================================
   Future<void> _validatePayment(Payment payment) async {
     final now = DateTime.now();
     final isLate = payment.dueDate.isBefore(now);
-    
+
     showDialog(
       context: context,
       builder: (context) {
         return AlertDialog(
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(20),
-          ),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
           title: Text(
             'Valider le paiement',
             style: GoogleFonts.urbanist(fontSize: 18, fontWeight: FontWeight.w600),
@@ -235,7 +245,8 @@ class _TenantPaymentsScreenState extends State<TenantPaymentsScreen> {
     );
   }
 
-  Future<void> _confirmPayment(Payment payment, {required bool generateReceipt}) async {
+  Future<void> _confirmPayment(Payment payment,
+      {required bool generateReceipt}) async {
     final updatedPayment = Payment(
       id: payment.id,
       tenantId: payment.tenantId,
@@ -248,13 +259,13 @@ class _TenantPaymentsScreenState extends State<TenantPaymentsScreen> {
       paymentDate: DateTime.now(),
       status: 'paid',
     );
-    
+
     final index = _payments.indexWhere((p) => p.id == payment.id);
     setState(() {
       _payments[index] = updatedPayment;
     });
     await _savePayments();
-    
+
     if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
@@ -263,16 +274,16 @@ class _TenantPaymentsScreenState extends State<TenantPaymentsScreen> {
         ),
       );
     }
-    
+
     if (generateReceipt) {
       _generateAndSendReceipt(updatedPayment);
     }
   }
 
-  // ----------------------------------------------------------------------
-  // Gestion PDF (remplace les anciennes méthodes)
-  // ----------------------------------------------------------------------
-  Future<void> _handlePDFAction(Payment payment, {bool share = true}) async {
+  // =========================================================================
+  // Gestion PDF (génération, partage, ouverture)
+  // =========================================================================
+  Future<File?> _generatePDF(Payment payment) async {
     try {
       final month = _formatMonth(payment.dueDate);
       final paymentDate = payment.paymentDate != null
@@ -283,51 +294,109 @@ class _TenantPaymentsScreenState extends State<TenantPaymentsScreen> {
         tenantName: payment.tenantName,
         propertyAddress: payment.lotName,
         rentAmount: payment.amount,
-        chargesAmount: 0.0, // à ajuster si besoin
+        chargesAmount: 0.0,
         totalAmount: payment.amount,
         month: month,
         paymentDate: paymentDate,
-        paymentMethod: 'Virement', // à personnaliser
+        paymentMethod: 'Virement',
         reference: payment.id,
       );
-
-      if (file != null) {
-        if (share) {
-          await PdfService.sharePDF(file);
-        } else {
-          await PdfService.openPDF(file);
-        }
-      } else {
-        _showSnackBar('Erreur lors de la génération du PDF');
-      }
+      return file;
     } catch (e) {
-      _showSnackBar('Une erreur est survenue : $e');
+      _showSnackBar('Erreur de génération PDF : $e');
+      return null;
     }
   }
 
-  // Nouvelle méthode pour générer et partager (appelée depuis _generateAndSendReceipt)
-  Future<void> _generateAndShareReceipt(Payment payment) async {
-    await _handlePDFAction(payment, share: true);
-  }
+  // Envoi par email (partage avec fichier)
+  Future<void> _sendByEmail(Payment payment) async {
+    final tenant = widget.tenant;
+    if (tenant.email == null || tenant.email!.isEmpty) {
+      _showSnackBar('Aucune adresse email renseignée pour ce locataire');
+      return;
+    }
 
-  // Nouvelle méthode pour ouvrir le PDF (appelée depuis _viewReceipt)
-  Future<void> _openReceipt(Payment payment) async {
-    await _handlePDFAction(payment, share: false);
-  }
+    final file = await _generatePDF(payment);
+    if (file == null) return;
 
-  String _formatDate(DateTime date) {
-    return '${date.day}/${date.month}/${date.year}';
-  }
-
-  void _showSnackBar(String message) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(message)),
+    await Share.shareXFiles(
+      [XFile(file.path)],
+      text: 'Quittance de loyer - ${_formatMonth(payment.dueDate)}',
+      subject: 'Quittance de loyer',
     );
+    // L'utilisateur choisira l'application Mail (ou autre)
   }
 
-  // ----------------------------------------------------------------------
-  // Méthodes d'affichage (modifiées pour utiliser les nouvelles méthodes)
-  // ----------------------------------------------------------------------
+  // Envoi par WhatsApp (partage avec fichier)
+  Future<void> _sendByWhatsApp(Payment payment) async {
+    final tenant = widget.tenant;
+    if (tenant.phone == null || tenant.phone!.isEmpty) {
+      _showSnackBar('Aucun numéro de téléphone renseigné pour ce locataire');
+      return;
+    }
+
+    final file = await _generatePDF(payment);
+    if (file == null) return;
+
+    await Share.shareXFiles(
+      [XFile(file.path)],
+      text: 'Quittance de loyer - ${_formatMonth(payment.dueDate)}',
+    );
+    // L'utilisateur choisira WhatsApp dans la liste des applications
+  }
+
+  // =========================================================================
+  // Ouverture directe des applications (sans fichier)
+  // =========================================================================
+  Future<void> _openMailApp(Payment payment) async {
+    final tenant = widget.tenant;
+    if (tenant.email == null || tenant.email!.isEmpty) {
+      _showSnackBar('Aucune adresse email renseignée pour ce locataire');
+      return;
+    }
+
+    final subject = 'Quittance de loyer - ${_formatMonth(payment.dueDate)}';
+    final body = 'Bonjour,\n\nVeuillez trouver ci-joint votre quittance de loyer pour la période ${_formatMonth(payment.dueDate)}.\n\nCordialement.';
+    final mailtoUri = Uri(
+      scheme: 'mailto',
+      path: tenant.email,
+      query: 'subject=${Uri.encodeComponent(subject)}&body=${Uri.encodeComponent(body)}',
+    );
+
+    if (await canLaunchUrl(mailtoUri)) {
+      await launchUrl(mailtoUri);
+    } else {
+      _showSnackBar('Impossible d\'ouvrir l\'application Mail');
+    }
+  }
+
+  Future<void> _openWhatsApp(Payment payment) async {
+    final tenant = widget.tenant;
+    if (tenant.phone == null || tenant.phone!.isEmpty) {
+      _showSnackBar('Aucun numéro de téléphone renseigné pour ce locataire');
+      return;
+    }
+
+    // Formater le numéro : enlever les espaces, ajouter un code pays si absent
+    String phone = tenant.phone!.trim().replaceAll(RegExp(r'\s+'), '');
+    if (!phone.startsWith('+')) {
+      // Exemple pour la France : +33
+      phone = '+33$phone';
+    }
+
+    final message = 'Bonjour, voici votre quittance de loyer pour ${_formatMonth(payment.dueDate)}.';
+    final whatsappUri = Uri.parse('https://wa.me/$phone?text=${Uri.encodeComponent(message)}');
+
+    if (await canLaunchUrl(whatsappUri)) {
+      await launchUrl(whatsappUri, mode: LaunchMode.externalApplication);
+    } else {
+      _showSnackBar('WhatsApp n\'est pas installé ou le numéro est invalide');
+    }
+  }
+
+  // =========================================================================
+  // Affichage des modals pour la quittance (version avec deux rangées)
+  // =========================================================================
   void _generateAndSendReceipt(Payment payment) {
     showModalBottomSheet(
       context: context,
@@ -359,6 +428,13 @@ class _TenantPaymentsScreenState extends State<TenantPaymentsScreen> {
                 style: GoogleFonts.urbanist(fontSize: 14, color: Colors.grey),
               ),
               const SizedBox(height: 24),
+
+              // 1ère rangée : Partager avec fichier
+              Text(
+                'Partager le PDF',
+                style: GoogleFonts.urbanist(fontSize: 14, fontWeight: FontWeight.w600),
+              ),
+              const SizedBox(height: 8),
               Row(
                 children: [
                   Expanded(
@@ -368,7 +444,7 @@ class _TenantPaymentsScreenState extends State<TenantPaymentsScreen> {
                       color: Colors.blue,
                       onPressed: () async {
                         Navigator.pop(context);
-                        await _generateAndShareReceipt(payment);
+                        await _sendByEmail(payment);
                       },
                     ),
                   ),
@@ -380,17 +456,53 @@ class _TenantPaymentsScreenState extends State<TenantPaymentsScreen> {
                       color: Colors.green,
                       onPressed: () async {
                         Navigator.pop(context);
-                        await _generateAndShareReceipt(payment);
+                        await _sendByWhatsApp(payment);
+                      },
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 20),
+
+              // 2ème rangée : Ouverture directe (sans fichier)
+              Text(
+                'Ouverture directe',
+                style: GoogleFonts.urbanist(fontSize: 14, fontWeight: FontWeight.w600),
+              ),
+              const SizedBox(height: 8),
+              Row(
+                children: [
+                  Expanded(
+                    child: _buildSendButton(
+                      icon: Icons.mail_outline,
+                      label: 'Ouvrir Mail',
+                      color: Colors.indigo,
+                      onPressed: () async {
+                        Navigator.pop(context);
+                        await _openMailApp(payment);
+                      },
+                    ),
+                  ),
+                  const SizedBox(width: 16),
+                  Expanded(
+                    child: _buildSendButton(
+                      icon: Icons.chat_bubble_outline,
+                      label: 'Ouvrir WhatsApp',
+                      color: Colors.teal,
+                      onPressed: () async {
+                        Navigator.pop(context);
+                        await _openWhatsApp(payment);
                       },
                     ),
                   ),
                 ],
               ),
               const SizedBox(height: 16),
+
               TextButton(
                 onPressed: () => Navigator.pop(context),
                 child: Text(
-                  'Plus tard',
+                  'Fermer',
                   style: GoogleFonts.urbanist(color: Colors.grey),
                 ),
               ),
@@ -445,7 +557,8 @@ class _TenantPaymentsScreenState extends State<TenantPaymentsScreen> {
                       color: Colors.red,
                       onPressed: () async {
                         Navigator.pop(context);
-                        await _openReceipt(payment);
+                        final file = await _generatePDF(payment);
+                        if (file != null) await PdfService.openPDF(file);
                       },
                     ),
                   ),
@@ -457,7 +570,8 @@ class _TenantPaymentsScreenState extends State<TenantPaymentsScreen> {
                       color: Colors.blue,
                       onPressed: () async {
                         Navigator.pop(context);
-                        await _generateAndShareReceipt(payment);
+                        final file = await _generatePDF(payment);
+                        if (file != null) await PdfService.sharePDF(file);
                       },
                     ),
                   ),
@@ -491,19 +605,40 @@ class _TenantPaymentsScreenState extends State<TenantPaymentsScreen> {
       style: ElevatedButton.styleFrom(
         backgroundColor: color,
         padding: const EdgeInsets.symmetric(vertical: 12),
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(12),
-        ),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
       ),
     );
   }
 
+  // =========================================================================
+  // Utilitaires
+  // =========================================================================
   String _formatMonth(DateTime date) {
     const months = [
-      'Janvier', 'Février', 'Mars', 'Avril', 'Mai', 'Juin',
-      'Juillet', 'Août', 'Septembre', 'Octobre', 'Novembre', 'Décembre'
+      'Janvier',
+      'Février',
+      'Mars',
+      'Avril',
+      'Mai',
+      'Juin',
+      'Juillet',
+      'Août',
+      'Septembre',
+      'Octobre',
+      'Novembre',
+      'Décembre'
     ];
     return '${months[date.month - 1]} ${date.year}';
+  }
+
+  String _formatDate(DateTime date) {
+    return '${date.day}/${date.month}/${date.year}';
+  }
+
+  void _showSnackBar(String message) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(message)),
+    );
   }
 
   String _getStatusText(String status, DateTime dueDate) {
@@ -518,6 +653,9 @@ class _TenantPaymentsScreenState extends State<TenantPaymentsScreen> {
     return Colors.orange;
   }
 
+  // =========================================================================
+  // Interface utilisateur (inchangée)
+  // =========================================================================
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -556,9 +694,7 @@ class _TenantPaymentsScreenState extends State<TenantPaymentsScreen> {
                 _buildSummaryCards(),
                 _buildInfoCard(),
                 const SizedBox(height: 8),
-                Expanded(
-                  child: _buildPaymentsList(),
-                ),
+                Expanded(child: _buildPaymentsList()),
               ],
             ),
     );
@@ -689,7 +825,7 @@ class _TenantPaymentsScreenState extends State<TenantPaymentsScreen> {
         final payment = _payments[index];
         final isPaid = payment.status == 'paid';
         final isLate = !isPaid && payment.dueDate.isBefore(DateTime.now());
-        
+
         return Container(
           margin: const EdgeInsets.only(bottom: 8),
           decoration: BoxDecoration(
@@ -710,11 +846,14 @@ class _TenantPaymentsScreenState extends State<TenantPaymentsScreen> {
                   width: 50,
                   height: 50,
                   decoration: BoxDecoration(
-                    color: _getStatusColor(payment.status, payment.dueDate).withValues(alpha: 0.1),
+                    color: _getStatusColor(payment.status, payment.dueDate)
+                        .withValues(alpha: 0.1),
                     borderRadius: BorderRadius.circular(12),
                   ),
                   child: Icon(
-                    isPaid ? Icons.check_circle : (isLate ? Icons.warning : Icons.pending),
+                    isPaid
+                        ? Icons.check_circle
+                        : (isLate ? Icons.warning : Icons.pending),
                     color: _getStatusColor(payment.status, payment.dueDate),
                     size: 28,
                   ),
@@ -752,7 +891,8 @@ class _TenantPaymentsScreenState extends State<TenantPaymentsScreen> {
                 Container(
                   padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                   decoration: BoxDecoration(
-                    color: _getStatusColor(payment.status, payment.dueDate).withValues(alpha: 0.1),
+                    color: _getStatusColor(payment.status, payment.dueDate)
+                        .withValues(alpha: 0.1),
                     borderRadius: BorderRadius.circular(20),
                   ),
                   child: Text(
