@@ -73,10 +73,17 @@ class _TenantsScreenState extends State<TenantsScreen> {
     setState(() {
       _selectedBuildingId = buildingId;
       _selectedLotId = null;
+      
+      if (buildingId == null) {
+        _availableLots = [];
+        return;
+      }
+      
       final building = _buildings.firstWhere(
         (b) => b.id == buildingId,
         orElse: () => Immeuble(id: '', name: '', address: '', lots: []),
       );
+      
       _availableLots = building.lots;
     });
   }
@@ -419,7 +426,7 @@ class _TenantsScreenState extends State<TenantsScreen> {
                                   radius: 25,
                                   backgroundColor: const Color(0xFF1E88E5).withValues(alpha: 0.1),
                                   child: Text(
-                                    tenant.fullName.isNotEmpty && tenant.fullName[0] != null
+                                    tenant.fullName.isNotEmpty
                                         ? tenant.fullName[0].toUpperCase()
                                         : '?',
                                     style: GoogleFonts.urbanist(
