@@ -4,7 +4,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../models/tenant.dart';
 import '../models/property.dart';
-import 'tenant_payments_screen.dart';
+import '../screens/tenant_payments_screen.dart';
 
 class TenantsScreen extends StatefulWidget {
   const TenantsScreen({super.key});
@@ -16,17 +16,16 @@ class TenantsScreen extends StatefulWidget {
 class _TenantsScreenState extends State<TenantsScreen> {
   List<Tenant> _tenants = [];
   List<Immeuble> _buildings = [];
+  bool _isLoading = true;
 
-  final TextEditingController _firstNameController = TextEditingController();
-  final TextEditingController _lastNameController = TextEditingController();
-  final TextEditingController _phoneController = TextEditingController();
-  final TextEditingController _emailController = TextEditingController();
-  final TextEditingController _depositController = TextEditingController();
-  final _formKey = GlobalKey<FormState>();
-
+  // Contrôleurs pour le formulaire
+  final _firstNameController = TextEditingController();
+  final _lastNameController = TextEditingController();
+  final _emailController = TextEditingController();
+  final _phoneController = TextEditingController();
+  DateTime _startDate = DateTime.now();
   String? _selectedBuildingId;
   String? _selectedLotId;
-  DateTime _selectedStartDate = DateTime.now();
   List<Lot> _availableLots = [];
 
   @override
@@ -35,19 +34,15 @@ class _TenantsScreenState extends State<TenantsScreen> {
     _loadData();
   }
 
-  @override
-  void dispose() {
-    _firstNameController.dispose();
-    _lastNameController.dispose();
-    _phoneController.dispose();
-    _emailController.dispose();
-    _depositController.dispose();
-    super.dispose();
+  Future<void> _loadData() async {
+    setState(() => _isLoading = true);
+    await _loadBuildings();
+    await _loadTenants();
+    setState(() => _isLoading = false);
   }
 
-  Future<void> _loadData() async {
+  Future<void> _loadBuildings() async {
     final prefs = await SharedPreferences.getInstance();
-    
     final String? buildingsJson = prefs.getString('buildings');
     if (buildingsJson != null && buildingsJson.isNotEmpty) {
       final List<dynamic> decoded = jsonDecode(buildingsJson);
@@ -55,18 +50,16 @@ class _TenantsScreenState extends State<TenantsScreen> {
         _buildings = decoded.map((e) => Immeuble.fromJson(e)).toList();
       });
     }
+  }
 
+  Future<void> _loadTenants() async {
+    final prefs = await SharedPreferences.getInstance();
     final String? tenantsJson = prefs.getString('tenants');
     if (tenantsJson != null && tenantsJson.isNotEmpty) {
       final List<dynamic> decoded = jsonDecode(tenantsJson);
       setState(() {
         _tenants = decoded.map((e) => Tenant.fromJson(e)).toList();
       });
-    } else {
-      setState(() {
-        _tenants = [];
-      });
-      await _saveTenants();
     }
   }
 
@@ -76,345 +69,264 @@ class _TenantsScreenState extends State<TenantsScreen> {
     await prefs.setString('tenants', jsonString);
   }
 
-  Future<void> _saveBuildings() async {
-    final prefs = await SharedPreferences.getInstance();
-    final String jsonString = jsonEncode(_buildings.map((e) => e.toJson()).toList());
-    await prefs.setString('buildings', jsonString);
+  void _updateLots(String? buildingId) {
+    setState(() {
+      _selectedBuildingId = buildingId;
+      _selectedLotId = null;
+      final building = _buildings.firstWhere(
+        (b) => b.id == buildingId,
+        orElse: () => Immeuble(id: '', name: '', address: '', lots: []),
+      );
+      _availableLots = building.lots;
+    });
   }
 
-  Future<void> _updateLotStatus(String buildingId, String lotId, String status) async {
-    final buildingIndex = _buildings.indexWhere((b) => b.id == buildingId);
-    if (buildingIndex != -1) {
-      final lotIndex = _buildings[buildingIndex].lots.indexWhere((l) => l.id == lotId);
-      if (lotIndex != -1) {
-        final oldLot = _buildings[buildingIndex].lots[lotIndex];
-        final updatedLot = Lot(
-          id: oldLot.id,
-          name: oldLot.name,
-          type: oldLot.type,
-          area: oldLot.area,
-          rent: oldLot.rent,
-          rooms: oldLot.rooms,
-          status: status,
-          floor: oldLot.floor,
-        );
-        setState(() {
-          _buildings[buildingIndex].lots[lotIndex] = updatedLot;
-        });
-        await _saveBuildings();
-      }
+  void _addTenant() async {
+    final fullName = '${_firstNameController.text.trim()} ${_lastNameController.text.trim()}';
+    if (fullName.isEmpty) {
+      _showSnackBar('Veuillez entrer le nom du locataire');
+      return;
     }
-  }
+    if (_selectedBuildingId == null || _selectedLotId == null) {
+      _showSnackBar('Veuillez sélectionner un bien');
+      return;
+    }
 
-  void _goToPayments(Tenant tenant) {
-    Navigator.push(
-      context,
-      MaterialPageRoute(
-        builder: (context) => TenantPaymentsScreen(tenant: tenant),
-      ),
+    final id = DateTime.now().millisecondsSinceEpoch.toString();
+    final newTenant = Tenant(
+      id: id,
+      fullName: fullName,
+      buildingId: _selectedBuildingId,
+      lotId: _selectedLotId,
+      startDate: _startDate,
+      email: _emailController.text.trim().isNotEmpty ? _emailController.text.trim() : null,
+      phone: _phoneController.text.trim().isNotEmpty ? _phoneController.text.trim() : null,
     );
-  }
 
-  void _addTenant() {
+    setState(() {
+      _tenants.add(newTenant);
+    });
+    await _saveTenants();
+
+    // Réinitialiser le formulaire
     _firstNameController.clear();
     _lastNameController.clear();
-    _phoneController.clear();
     _emailController.clear();
-    _depositController.clear();
+    _phoneController.clear();
+    _startDate = DateTime.now();
     _selectedBuildingId = null;
     _selectedLotId = null;
-    _selectedStartDate = DateTime.now();
     _availableLots = [];
 
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-      ),
-      builder: (context) {
-        return StatefulBuilder(
-          builder: (context, setModalState) {
-            return Padding(
-              padding: EdgeInsets.only(
-                bottom: MediaQuery.of(context).viewInsets.bottom,
-              ),
-              child: SingleChildScrollView(
-                child: Container(
-                  padding: const EdgeInsets.all(24),
-                  child: Form(
-                    key: _formKey,
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Center(
-                          child: Container(
-                            width: 40,
-                            height: 4,
-                            decoration: BoxDecoration(
-                              color: const Color(0xFFE0E0E0),
-                              borderRadius: BorderRadius.circular(2),
-                            ),
-                          ),
-                        ),
-                        const SizedBox(height: 24),
-                        Text(
-                          'Ajouter un locataire',
-                          style: GoogleFonts.urbanist(
-                            fontSize: 20,
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
-                        const SizedBox(height: 24),
-                        TextFormField(
-                          controller: _firstNameController,
-                          decoration: InputDecoration(
-                            labelText: 'Prénom *',
-                            border: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(12),
-                            ),
-                          ),
-                          validator: (value) => value == null || value.isEmpty ? 'Requis' : null,
-                        ),
-                        const SizedBox(height: 16),
-                        TextFormField(
-                          controller: _lastNameController,
-                          decoration: InputDecoration(
-                            labelText: 'Nom *',
-                            border: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(12),
-                            ),
-                          ),
-                          validator: (value) => value == null || value.isEmpty ? 'Requis' : null,
-                        ),
-                        const SizedBox(height: 16),
-                        TextFormField(
-                          controller: _phoneController,
-                          decoration: InputDecoration(
-                            labelText: 'Téléphone *',
-                            border: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(12),
-                            ),
-                          ),
-                          validator: (value) => value == null || value.isEmpty ? 'Requis' : null,
-                        ),
-                        const SizedBox(height: 16),
-                        TextFormField(
-                          controller: _emailController,
-                          decoration: InputDecoration(
-                            labelText: 'Email',
-                            border: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(12),
-                            ),
-                          ),
-                        ),
-                        const SizedBox(height: 16),
-                        DropdownButtonFormField<String>(
-                          initialValue: _selectedBuildingId,
-                          decoration: InputDecoration(
-                            labelText: 'Immeuble *',
-                            border: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(12),
-                            ),
-                          ),
-                          items: _buildings.map((building) {
-                            return DropdownMenuItem(
-                              value: building.id,
-                              child: Text(building.name),
-                            );
-                          }).toList(),
-                          onChanged: (value) {
-                            setModalState(() {
-                              _selectedBuildingId = value;
-                              _selectedLotId = null;
-                              final building = _buildings.firstWhere((b) => b.id == value);
-                              _availableLots = building.lots.where((l) => l.status == 'Libre').toList();
-                            });
-                          },
-                          validator: (value) => value == null ? 'Sélectionnez un immeuble' : null,
-                        ),
-                        const SizedBox(height: 16),
-                        if (_selectedBuildingId != null)
-                          DropdownButtonFormField<String>(
-                            initialValue: _selectedLotId,
-                            decoration: InputDecoration(
-                              labelText: 'Lot *',
-                              border: OutlineInputBorder(
-                                borderRadius: BorderRadius.circular(12),
-                              ),
-                            ),
-                            items: _availableLots.map((lot) {
-                              return DropdownMenuItem(
-                                value: lot.id,
-                                child: Text('${lot.name} - ${lot.floor} (${lot.rent}€/mois)'),
-                              );
-                            }).toList(),
-                            onChanged: (value) {
-                              setModalState(() {
-                                _selectedLotId = value;
-                              });
-                            },
-                            validator: (value) => value == null ? 'Sélectionnez un lot' : null,
-                          ),
-                        const SizedBox(height: 16),
-                        ListTile(
-                          contentPadding: EdgeInsets.zero,
-                          title: const Text('Date d\'entrée'),
-                          subtitle: Text(
-                            '${_selectedStartDate.day}/${_selectedStartDate.month}/${_selectedStartDate.year}',
-                          ),
-                          trailing: const Icon(Icons.calendar_today),
-                          onTap: () async {
-                            final date = await showDatePicker(
-                              context: context,
-                              initialDate: _selectedStartDate,
-                              firstDate: DateTime(2020),
-                              lastDate: DateTime(2030),
-                            );
-                            if (date != null) {
-                              setModalState(() {
-                                _selectedStartDate = date;
-                              });
-                            }
-                          },
-                        ),
-                        const SizedBox(height: 16),
-                        TextFormField(
-                          controller: _depositController,
-                          decoration: InputDecoration(
-                            labelText: 'Dépôt de garantie (€)',
-                            border: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(12),
-                            ),
-                            prefixIcon: const Icon(Icons.euro, size: 18),
-                          ),
-                          keyboardType: TextInputType.number,
-                        ),
-                        const SizedBox(height: 24),
-                        Row(
-                          children: [
-                            Expanded(
-                              child: OutlinedButton(
-                                onPressed: () => Navigator.pop(context),
-                                child: const Text('Annuler'),
-                              ),
-                            ),
-                            const SizedBox(width: 12),
-                            Expanded(
-                              child: ElevatedButton(
-                                onPressed: () {
-                                  if (_formKey.currentState!.validate() && _selectedLotId != null && _selectedBuildingId != null) {
-                                    final newTenant = Tenant(
-                                      id: DateTime.now().millisecondsSinceEpoch.toString(),
-                                      firstName: _firstNameController.text,
-                                      lastName: _lastNameController.text,
-                                      phone: _phoneController.text,
-                                      email: _emailController.text,
-                                      buildingId: _selectedBuildingId,
-                                      lotId: _selectedLotId,
-                                      startDate: _selectedStartDate,
-                                      deposit: double.tryParse(_depositController.text) ?? 0,
-                                    );
-                                    
-                                    setState(() {
-                                      _tenants.add(newTenant);
-                                    });
-                                    _saveTenants();
-                                    
-                                    _updateLotStatus(_selectedBuildingId!, _selectedLotId!, 'Occupé');
-                                    
-                                    Navigator.pop(context);
-                                    ScaffoldMessenger.of(context).showSnackBar(
-                                      SnackBar(
-                                        content: Text('Locataire ${newTenant.fullName} ajouté !'),
-                                        backgroundColor: Colors.green,
-                                      ),
-                                    );
-                                  }
-                                },
-                                style: ElevatedButton.styleFrom(
-                                  backgroundColor: const Color(0xFF1E88E5),
-                                ),
-                                child: const Text('Ajouter'),
-                              ),
-                            ),
-                          ],
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-              ),
-            );
-          },
-        );
-      },
-    );
+    Navigator.pop(context);
+    _showSnackBar('Locataire ajouté avec succès');
+    _loadData();
   }
 
-  void _deleteTenant(Tenant tenant, int index) {
+  void _editTenant(Tenant tenant) {
+    // Extraire prénom et nom du fullName
+    final nameParts = tenant.fullName.split(' ');
+    final firstName = nameParts.isNotEmpty ? nameParts[0] : '';
+    final lastName = nameParts.length > 1 ? nameParts.sublist(1).join(' ') : '';
+
+    _firstNameController.text = firstName;
+    _lastNameController.text = lastName;
+    _emailController.text = tenant.email ?? '';
+    _phoneController.text = tenant.phone ?? '';
+    _startDate = tenant.startDate;
+    _selectedBuildingId = tenant.buildingId;
+    _selectedLotId = tenant.lotId;
+
+    if (tenant.buildingId != null) {
+      _updateLots(tenant.buildingId);
+    }
+
     showDialog(
       context: context,
-      builder: (context) {
-        return AlertDialog(
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(20),
-          ),
-          title: Text(
-            'Supprimer le locataire',
-            style: GoogleFonts.urbanist(
-              fontSize: 18,
-              fontWeight: FontWeight.w600,
-            ),
-          ),
-          content: Text(
-            'Voulez-vous vraiment supprimer "${tenant.fullName}" ?\n\nLe lot deviendra libre.',
-            style: GoogleFonts.urbanist(fontSize: 14),
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(context),
-              child: Text(
-                'Annuler',
-                style: GoogleFonts.urbanist(color: const Color(0xFF757575)),
-              ),
-            ),
-            TextButton(
-              onPressed: () async {
-                if (tenant.buildingId != null && tenant.lotId != null) {
-                  await _updateLotStatus(tenant.buildingId!, tenant.lotId!, 'Libre');
-                }
-                
-                setState(() {
-                  _tenants.removeAt(index);
-                });
-                await _saveTenants();
-                Navigator.pop(context);
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(
-                    content: Text('Locataire "${tenant.fullName}" supprimé'),
-                    backgroundColor: Colors.red,
-                  ),
-                );
-              },
-              child: Text(
-                'Supprimer',
-                style: GoogleFonts.urbanist(
-                  color: Colors.red,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-            ),
-          ],
-        );
-      },
+      builder: (context) => _buildTenantDialog(isEdit: true, tenant: tenant),
     );
   }
 
-  String _getLotName(String buildingId, String lotId) {
-    final building = _buildings.firstWhere((b) => b.id == buildingId, orElse: () => Immeuble(id: '', name: '', address: '', lots: []));
-    final lot = building.lots.firstWhere((l) => l.id == lotId, orElse: () => Lot(id: '', name: '', type: '', area: 0, rent: 0, rooms: 0, status: '', floor: ''));
-    return lot.name.isNotEmpty ? '${building.name} - ${lot.name} (${lot.floor})' : 'Non attribué';
+  Future<void> _updateTenant(Tenant oldTenant) async {
+    final fullName = '${_firstNameController.text.trim()} ${_lastNameController.text.trim()}';
+    if (fullName.isEmpty) {
+      _showSnackBar('Veuillez entrer le nom du locataire');
+      return;
+    }
+
+    final updatedTenant = Tenant(
+      id: oldTenant.id,
+      fullName: fullName,
+      buildingId: _selectedBuildingId,
+      lotId: _selectedLotId,
+      startDate: _startDate,
+      email: _emailController.text.trim().isNotEmpty ? _emailController.text.trim() : null,
+      phone: _phoneController.text.trim().isNotEmpty ? _phoneController.text.trim() : null,
+    );
+
+    final index = _tenants.indexWhere((t) => t.id == oldTenant.id);
+    setState(() {
+      _tenants[index] = updatedTenant;
+    });
+    await _saveTenants();
+
+    Navigator.pop(context);
+    _showSnackBar('Locataire modifié avec succès');
+    _loadData();
+  }
+
+  void _deleteTenant(Tenant tenant) async {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Supprimer le locataire'),
+        content: Text('Voulez-vous vraiment supprimer ${tenant.fullName} ?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Annuler'),
+          ),
+          TextButton(
+            onPressed: () async {
+              setState(() {
+                _tenants.removeWhere((t) => t.id == tenant.id);
+              });
+              await _saveTenants();
+              Navigator.pop(context);
+              _showSnackBar('Locataire supprimé');
+              _loadData();
+            },
+            child: const Text('Supprimer', style: TextStyle(color: Colors.red)),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildTenantDialog({bool isEdit = false, Tenant? tenant}) {
+    return AlertDialog(
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+      title: Text(isEdit ? 'Modifier le locataire' : 'Ajouter un locataire'),
+      content: SizedBox(
+        width: MediaQuery.of(context).size.width * 0.8,
+        child: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              TextField(
+                controller: _firstNameController,
+                decoration: const InputDecoration(
+                  labelText: 'Prénom',
+                  border: OutlineInputBorder(),
+                ),
+              ),
+              const SizedBox(height: 12),
+              TextField(
+                controller: _lastNameController,
+                decoration: const InputDecoration(
+                  labelText: 'Nom',
+                  border: OutlineInputBorder(),
+                ),
+              ),
+              const SizedBox(height: 12),
+              TextField(
+                controller: _emailController,
+                decoration: const InputDecoration(
+                  labelText: 'Email',
+                  border: OutlineInputBorder(),
+                ),
+                keyboardType: TextInputType.emailAddress,
+              ),
+              const SizedBox(height: 12),
+              TextField(
+                controller: _phoneController,
+                decoration: const InputDecoration(
+                  labelText: 'Téléphone',
+                  border: OutlineInputBorder(),
+                ),
+                keyboardType: TextInputType.phone,
+              ),
+              const SizedBox(height: 12),
+              DropdownButtonFormField<String>(
+                value: _selectedBuildingId,
+                decoration: const InputDecoration(
+                  labelText: 'Immeuble',
+                  border: OutlineInputBorder(),
+                ),
+                items: _buildings.map((building) {
+                  return DropdownMenuItem(
+                    value: building.id,
+                    child: Text(building.name),
+                  );
+                }).toList(),
+                onChanged: (value) {
+                  _updateLots(value);
+                },
+              ),
+              const SizedBox(height: 12),
+              DropdownButtonFormField<String>(
+                value: _selectedLotId,
+                decoration: const InputDecoration(
+                  labelText: 'Lot',
+                  border: OutlineInputBorder(),
+                ),
+                items: _availableLots.map((lot) {
+                  return DropdownMenuItem(
+                    value: lot.id,
+                    child: Text('${lot.name} - ${lot.rent.toStringAsFixed(2)} €'),
+                  );
+                }).toList(),
+                onChanged: (value) {
+                  setState(() {
+                    _selectedLotId = value;
+                  });
+                },
+              ),
+              const SizedBox(height: 12),
+              ListTile(
+                title: const Text('Date d\'entrée'),
+                subtitle: Text('${_startDate.day}/${_startDate.month}/${_startDate.year}'),
+                onTap: () async {
+                  final date = await showDatePicker(
+                    context: context,
+                    initialDate: _startDate,
+                    firstDate: DateTime(2000),
+                    lastDate: DateTime.now(),
+                  );
+                  if (date != null) {
+                    setState(() {
+                      _startDate = date;
+                    });
+                  }
+                },
+              ),
+            ],
+          ),
+        ),
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(context),
+          child: const Text('Annuler'),
+        ),
+        ElevatedButton(
+          onPressed: () {
+            if (isEdit && tenant != null) {
+              _updateTenant(tenant);
+            } else {
+              _addTenant();
+            }
+          },
+          child: Text(isEdit ? 'Modifier' : 'Ajouter'),
+        ),
+      ],
+    );
+  }
+
+  void _showSnackBar(String message) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(message)),
+    );
   }
 
   @override
@@ -433,108 +345,147 @@ class _TenantsScreenState extends State<TenantsScreen> {
         elevation: 0,
         actions: [
           IconButton(
-            icon: const Icon(Icons.add_circle_outline, size: 28),
-            color: const Color(0xFF1E88E5),
-            onPressed: _addTenant,
+            icon: const Icon(Icons.add, color: Colors.black87),
+            onPressed: () {
+              _firstNameController.clear();
+              _lastNameController.clear();
+              _emailController.clear();
+              _phoneController.clear();
+              _startDate = DateTime.now();
+              _selectedBuildingId = null;
+              _selectedLotId = null;
+              _availableLots = [];
+              showDialog(
+                context: context,
+                builder: (context) => _buildTenantDialog(),
+              );
+            },
           ),
         ],
       ),
-      body: _tenants.isEmpty
-          ? Center(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  const Icon(Icons.people, size: 80, color: Colors.grey),
-                  const SizedBox(height: 16),
-                  Text(
-                    'Aucun locataire',
-                    style: GoogleFonts.urbanist(fontSize: 18),
-                  ),
-                  const SizedBox(height: 8),
-                  Text(
-                    'Cliquez sur + pour ajouter un locataire',
-                    style: GoogleFonts.urbanist(fontSize: 14, color: Colors.grey),
-                  ),
-                ],
-              ),
-            )
-          : ListView.builder(
-              padding: const EdgeInsets.all(16),
-              itemCount: _tenants.length,
-              itemBuilder: (context, index) {
-                final tenant = _tenants[index];
-                return Container(
-                  margin: const EdgeInsets.only(bottom: 12),
-                  decoration: BoxDecoration(
-                    color: Colors.white,
-                    borderRadius: BorderRadius.circular(16),
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.grey.withOpacity(0.1),
-                        blurRadius: 8,
-                      ),
-                    ],
-                  ),
+      body: _isLoading
+          ? const Center(child: CircularProgressIndicator())
+          : _tenants.isEmpty
+              ? Center(
                   child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      ListTile(
-                        contentPadding: const EdgeInsets.all(16),
-                        leading: CircleAvatar(
-                          backgroundColor: const Color(0xFF1E88E5).withOpacity(0.1),
-                          child: Text(
-                            tenant.firstName[0].toUpperCase() + tenant.lastName[0].toUpperCase(),
-                            style: const TextStyle(
-                              color: Color(0xFF1E88E5),
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                        ),
-                        title: Text(
-                          tenant.fullName,
-                          style: GoogleFonts.urbanist(
-                            fontWeight: FontWeight.w600,
-                            fontSize: 16,
-                          ),
-                        ),
-                        subtitle: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            const SizedBox(height: 4),
-                            Text(
-                              tenant.phone,
-                              style: GoogleFonts.urbanist(fontSize: 12, color: Colors.grey),
-                            ),
-                            if (tenant.buildingId != null && tenant.lotId != null)
-                              Text(
-                                _getLotName(tenant.buildingId!, tenant.lotId!),
-                                style: GoogleFonts.urbanist(
-                                  fontSize: 11,
-                                  color: const Color(0xFF1E88E5),
-                                ),
-                              ),
-                          ],
-                        ),
-                        trailing: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            IconButton(
-                              icon: const Icon(Icons.payment, color: Color(0xFF1E88E5)),
-                              onPressed: () => _goToPayments(tenant),
-                              tooltip: 'Voir les paiements',
-                            ),
-                            IconButton(
-                              icon: const Icon(Icons.delete_outline, color: Colors.red),
-                              onPressed: () => _deleteTenant(tenant, index),
-                              tooltip: 'Supprimer',
-                            ),
-                          ],
-                        ),
+                      const Icon(Icons.people_outline, size: 80, color: Colors.grey),
+                      const SizedBox(height: 16),
+                      Text(
+                        'Aucun locataire',
+                        style: GoogleFonts.urbanist(fontSize: 16),
+                      ),
+                      const SizedBox(height: 8),
+                      Text(
+                        'Appuyez sur le bouton + pour ajouter',
+                        style: GoogleFonts.urbanist(fontSize: 12, color: Colors.grey),
                       ),
                     ],
                   ),
-                );
-              },
-            ),
+                )
+              : ListView.builder(
+                  padding: const EdgeInsets.all(16),
+                  itemCount: _tenants.length,
+                  itemBuilder: (context, index) {
+                    final tenant = _tenants[index];
+                    return Container(
+                      margin: const EdgeInsets.only(bottom: 12),
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(16),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.grey.withValues(alpha: 0.1),
+                            blurRadius: 8,
+                          ),
+                        ],
+                      ),
+                      child: Material(
+                        color: Colors.transparent,
+                        child: InkWell(
+                          borderRadius: BorderRadius.circular(16),
+                          onTap: () {
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (context) => TenantPaymentsScreen(tenant: tenant),
+                              ),
+                            );
+                          },
+                          child: Padding(
+                            padding: const EdgeInsets.all(16),
+                            child: Row(
+                              children: [
+                                CircleAvatar(
+                                  radius: 25,
+                                  backgroundColor: const Color(0xFF1E88E5).withValues(alpha: 0.1),
+                                  child: Text(
+                                    tenant.fullName.isNotEmpty 
+                                        ? tenant.fullName[0].toUpperCase() 
+                                        : '?',
+                                    style: GoogleFonts.urbanist(
+                                      fontSize: 18,
+                                      fontWeight: FontWeight.bold,
+                                      color: const Color(0xFF1E88E5),
+                                    ),
+                                  ),
+                                ),
+                                const SizedBox(width: 12),
+                                Expanded(
+                                  child: Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      Text(
+                                        tenant.fullName,
+                                        style: GoogleFonts.urbanist(
+                                          fontSize: 16,
+                                          fontWeight: FontWeight.w600,
+                                        ),
+                                      ),
+                                      const SizedBox(height: 4),
+                                      if (tenant.email != null && tenant.email!.isNotEmpty)
+                                        Text(
+                                          tenant.email!,
+                                          style: GoogleFonts.urbanist(
+                                            fontSize: 12,
+                                            color: Colors.grey,
+                                          ),
+                                        ),
+                                      if (tenant.phone != null && tenant.phone!.isNotEmpty)
+                                        Text(
+                                          tenant.phone!,
+                                          style: GoogleFonts.urbanist(
+                                            fontSize: 12,
+                                            color: Colors.grey,
+                                          ),
+                                        ),
+                                      Text(
+                                        'Entrée : ${tenant.startDate.day}/${tenant.startDate.month}/${tenant.startDate.year}',
+                                        style: GoogleFonts.urbanist(
+                                          fontSize: 10,
+                                          color: Colors.grey,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                                IconButton(
+                                  icon: const Icon(Icons.edit, color: Colors.blue),
+                                  onPressed: () => _editTenant(tenant),
+                                ),
+                                IconButton(
+                                  icon: const Icon(Icons.delete, color: Colors.red),
+                                  onPressed: () => _deleteTenant(tenant),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ),
+                    );
+                  },
+                ),
     );
   }
 }
